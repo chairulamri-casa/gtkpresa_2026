@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Penilaian Berkas</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Penilaian Berkas / Portofolio</h1>
+    <div class="sub">Tim Pemeriksa Berkas — GTKPRESA 2026</div>
+  </div>
+  <div class="right">
+    <span id="userLabel"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2>Pilih Mata Lomba</h2>
+    <select id="selKategori" onchange="loadPeserta()"></select>
+  </div>
+
+  <div class="card">
+    <h2>Daftar Peserta</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Status administrasi <b>Lengkap</b> adalah syarat mutlak agar peserta diikutsertakan pada tahap presentasi &amp; wawancara.</p>
+    <div class="table-wrap"><table id="tblPeserta">
+      <thead><tr><th>Nama</th><th>Kab/Kota</th><th>Unit Kerja</th><th>Status Administrasi</th><th>Progres Nilai Anda</th><th>Aksi</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div id="emptyState" class="empty-state" style="display:none;">Belum ada peserta pada mata lomba ini.</div>
+  </div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h2 id="formTitle">Form Penilaian</h2>
+    <div id="checklistAdmin"></div>
+    <div id="berkasLinks"></div>
+    <h3 style="margin-top:18px;">Rubrik Feature Diri (Wajib, Berlaku Sama Semua Kategori)</h3>
+    <div id="featureForm"></div>
+    <h3 style="margin-top:18px;">Rubrik Kompetensi Kategori</h3>
+    <div id="kriteriaForm"></div>
+    <button class="btn btn-primary" style="margin-top:14px;" onclick="simpanNilai()">Simpan Penilaian</button>
+    <button class="btn btn-outline" style="margin-top:14px;" onclick="tutupForm()">Tutup</button>
+  </div>
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let profile, currentPesertaId = null, currentKriteria = [], currentSubKriteria = [];
+let currentKriteriaFeature = [], currentSubKriteriaFeature = [];
+
+async function init() {
+  profile = await requireAuth(["pemeriksa_berkas"]);
+  if (!profile) return;
+  document.getElementById("userLabel").textContent = profile.nama + " • " + roleLabel(profile.role);
+
+  let query = sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
+  const { data: kategori } = await query;
+  // filter sesuai penugasan bila ada
+  const list = (profile.kategori_ditugaskan && profile.kategori_ditugaskan.length)
+    ? kategori.filter(k => profile.kategori_ditugaskan.includes(k.id))
+    : kategori;
+
+  document.getElementById("selKategori").innerHTML = list.map(k => `<option value="${k.id}">${k.nama}</option>`).join("");
+  if (list.length) loadPeserta();
+}
+
+async function loadPeserta() {
+  const katId = document.getElementById("selKategori").value;
+  const { data } = await sb.from("peserta").select("*, kabupaten_kota(nama)").eq("kategori_id", katId).order("nama_lengkap");
+
+  const tbody = document.querySelector("#tblPeserta tbody");
+  if (!data || !data.length) {
+    tbody.innerHTML = "";
+    document.getElementById("emptyState").style.display = "block";
+    return;
+  }
+  document.getElementById("emptyState").style.display = "none";
+
+  const rows = [];
+  for (const p of data) {
+    const { count: countKompetensi } = await sb.from("penilaian_berkas").select("*", { count: "exact", head: true })
+      .eq("peserta_id", p.id).eq("pemeriksa_id", profile.id);
+    const { count: countFeature } = await sb.from("penilaian_feature").select("*", { count: "exact", head: true })
+      .eq("peserta_id", p.id).eq("pemeriksa_id", profile.id);
+    rows.push({ p, sudahKompetensi: countKompetensi || 0, sudahFeature: countFeature || 0 });
+  }
+
+  tbody.innerHTML = rows.map(({p, sudahKompetensi, sudahFeature}) => {
+    let statusBadge;
+    if (sudahKompetensi > 0 && sudahFeature > 0) {
+      statusBadge = '<span class="badge badge-green">Sudah Dinilai</span>';
+    } else if (sudahKompetensi > 0 || sudahFeature > 0) {
+      statusBadge = '<span class="badge badge-gold">Sebagian Dinilai</span>';
+    } else {
+      statusBadge = '<span class="badge badge-grey">Belum Dinilai</span>';
+    }
+    return `
+    <tr>
+      <td>${p.nama_lengkap}</td>
+      <td>${p.kabupaten_kota?.nama || "-"}</td>
+      <td>${p.unit_kerja || "-"}</td>
+      <td>
+        <select onchange="setVerifikasi('${p.id}', this.value)" style="width:auto; display:inline-block; padding:4px 6px; font-size:12px;">
+          <option value="diajukan" ${p.status_verifikasi === 'diajukan' ? 'selected' : ''}>Belum Diverifikasi</option>
+          <option value="lengkap" ${p.status_verifikasi === 'lengkap' ? 'selected' : ''}>Lengkap</option>
+          <option value="tidak_lengkap" ${p.status_verifikasi === 'tidak_lengkap' ? 'selected' : ''}>Tidak Lengkap</option>
+        </select>
+      </td>
+      <td>${statusBadge}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="bukaForm('${p.id}','${p.nama_lengkap.replace(/'/g,"")}')">Nilai Portofolio</button></td>
+    </tr>`;
+  }).join("");
+}
+
+async function setVerifikasi(pesertaId, status) {
+  const { error } = await sb.from("peserta").update({ status_verifikasi: status }).eq("id", pesertaId);
+  if (error) { alert("Gagal: " + error.message); return; }
+  loadPeserta();
+}
+
+async function bukaForm(pesertaId, nama) {
+  currentPesertaId = pesertaId;
+  document.getElementById("formTitle").textContent = "Form Penilaian — " + nama;
+  document.getElementById("formCard").style.display = "block";
+
+  const { data: berkas } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaId);
+  const berkasUmum = (berkas || []).filter(b => b.jenis !== "bukti_karya");
+  const berkasKriteria = (berkas || []).filter(b => b.jenis === "bukti_karya");
+
+  // ---- Checklist Kelengkapan Administrasi (bantu keputusan Lengkap/Tidak Lengkap) ----
+  const jenisAda = new Set(berkasUmum.map(b => b.jenis));
+  const checklistItems = [
+    { jenis: "feature_diri", label: "Feature Diri" },
+    { jenis: "surat_rekomendasi", label: "Surat Rekomendasi" },
+    { jenis: "surat_pernyataan", label: "Surat Pernyataan Kesediaan" },
+    { jenis: "surat_pernyataan_keaslian", label: "Surat Pernyataan Keaslian Karya" },
+  ];
+  const wajibTerpenuhi = checklistItems.every(c => jenisAda.has(c.jenis));
+  const adaBuktiKriteria = berkasKriteria.length > 0;
+  document.getElementById("checklistAdmin").innerHTML = `
+    <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:${wajibTerpenuhi && adaBuktiKriteria ? "var(--light-green)" : "#FFF8E8"};">
+      <b style="font-size:13px;">Checklist Kelengkapan Administrasi (Bab II.C Juknis)</b>
+      <div style="margin-top:8px; font-size:12.5px; line-height:2;">
+        ${checklistItems.map(c => `<div>${jenisAda.has(c.jenis) ? "✅" : "❌"} ${c.label} — <span style="color:var(--grey);">wajib</span></div>`).join("")}
+        <div>${adaBuktiKriteria ? "✅" : "❌"} Minimal 1 bukti pendukung kriteria kategori — <span style="color:var(--grey);">wajib</span></div>
+        <div>${jenisAda.has("best_practice") ? "✅" : "➖"} Best Practice/Makalah — <span style="color:var(--grey);">opsional</span></div>
+      </div>
+      <div style="margin-top:8px; font-size:12.5px; font-weight:700; color:${wajibTerpenuhi && adaBuktiKriteria ? "var(--green)" : "var(--gold)"};">
+        ${wajibTerpenuhi && adaBuktiKriteria ? "✓ Seluruh dokumen wajib sudah lengkap" : "⚠ Masih ada dokumen wajib yang belum diunggah"}
+      </div>
+    </div>`;
+
+  const labelJenis = {
+    feature_diri: "Feature Diri", best_practice: "Best Practice/Makalah",
+    surat_rekomendasi: "Surat Rekomendasi", surat_pernyataan: "Surat Pernyataan Kesediaan",
+    surat_pernyataan_keaslian: "Surat Pernyataan Keaslian Karya", dokumen_lain: "Dokumen Lain"
+  };
+  document.getElementById("berkasLinks").innerHTML = berkasUmum.length
+    ? "<h3>Dokumen Umum</h3>" + berkasUmum.map(b => `<div style="margin-bottom:4px;"><b>${labelJenis[b.jenis] || b.jenis}:</b></div>${renderTautanBukti(b.url)}`).join("")
+    : '<div class="msg msg-error">Peserta ini belum mengunggah dokumen umum (Feature Diri, dsb).</div>';
+
+  // ---- Rubrik Feature Diri (universal, tidak tergantung kategori) ----
+  const { data: kriteriaFeature } = await sb.from("kriteria_feature").select("*").order("urutan");
+  currentKriteriaFeature = kriteriaFeature || [];
+  const { data: subKriteriaFeature } = await sb.from("sub_kriteria_feature").select("*")
+    .in("kriteria_id", currentKriteriaFeature.map(k => k.id)).order("urutan");
+  currentSubKriteriaFeature = subKriteriaFeature || [];
+  const { data: detailFeatureAda } = await sb.from("penilaian_feature_detail").select("*")
+    .eq("peserta_id", pesertaId).eq("pemeriksa_id", profile.id);
+  const detailFeatureMap = Object.fromEntries((detailFeatureAda||[]).map(d => [d.sub_kriteria_id, d.skor]));
+
+  const featureDiriLink = berkasUmum.find(b => b.jenis === "feature_diri");
+
+  document.getElementById("featureForm").innerHTML = `
+    ${!featureDiriLink ? '<div class="msg msg-error" style="margin-bottom:10px;">⚠️ Peserta belum mengunggah dokumen Feature Diri.</div>' : ""}
+    ${currentKriteriaFeature.map(k => {
+      const items = currentSubKriteriaFeature.filter(s => s.kriteria_id === k.id);
+      return `
+      <div style="border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <b>${k.indikator}</b>
+          <span style="color:var(--gold); font-size:12.5px;">Bobot maksimal: ${k.bobot} poin</span>
+        </div>
+        ${items.map(s => `
+          <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+            <input type="number" min="0" max="${s.skor_maks}" step="0.5" id="subft_${s.id}"
+                   data-kriteria="${k.id}" data-maks="${s.skor_maks}"
+                   value="${detailFeatureMap[s.id] ?? ''}" oninput="updateSubtotalFeature('${k.id}')"
+                   style="width:80px; flex-shrink:0;">
+            <span style="font-size:13px;">${s.item} <span style="color:var(--grey);">(maks. ${s.skor_maks})</span></span>
+          </div>
+        `).join("")}
+        <div id="subtotalft_${k.id}" style="margin-top:10px; font-size:12.5px; font-weight:700;"></div>
+      </div>`;
+    }).join("")}`;
+
+  currentKriteriaFeature.forEach(k => updateSubtotalFeature(k.id));
+
+  const katId = document.getElementById("selKategori").value;
+  const { data: kriteria } = await sb.from("kriteria_penilaian").select("*").eq("kategori_id", katId).order("urutan");
+  currentKriteria = kriteria || [];
+
+  const { data: subKriteria } = await sb.from("sub_kriteria_penilaian").select("*")
+    .in("kriteria_id", currentKriteria.map(k => k.id)).order("urutan");
+  currentSubKriteria = subKriteria || [];
+
+  const { data: detailAda } = await sb.from("penilaian_berkas_detail").select("*")
+    .eq("peserta_id", pesertaId).eq("pemeriksa_id", profile.id);
+  const detailMap = Object.fromEntries((detailAda||[]).map(d => [d.sub_kriteria_id, d.skor]));
+
+  document.getElementById("kriteriaForm").innerHTML = currentKriteria.map(k => {
+    const items = currentSubKriteria.filter(s => s.kriteria_id === k.id);
+    const buktiUntukKriteriaIni = berkasKriteria.filter(b => b.kriteria_id === k.id);
+    return `
+    <div style="border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <b>${k.indikator}</b>
+        <span style="color:var(--gold); font-size:12.5px;">Bobot maksimal: ${k.bobot} poin</span>
+      </div>
+      ${k.bukti_pendukung ? `
+        <div style="margin-top:8px; background:var(--bg-soft, #F5F7F5); border-left:3px solid var(--green); padding:8px 12px; border-radius:6px;">
+          <span style="font-size:12px; color:var(--grey); font-weight:600;">📎 Contoh Bukti Pendukung:</span>
+          <span style="font-size:12.5px;"> ${k.bukti_pendukung}</span>
+        </div>` : ""}
+      ${buktiUntukKriteriaIni.length ? `
+        <div style="margin-top:8px;">
+          ${buktiUntukKriteriaIni.map(b => renderTautanBukti(b.url)).join("")}
+        </div>` : `<div style="margin-top:8px; font-size:12px; color:var(--red);">⚠️ Peserta belum mengunggah tautan bukti untuk indikator ini.</div>`}
+      ${items.map(s => `
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+          <input type="number" min="0" max="${s.skor_maks}" step="0.5" id="sub_${s.id}"
+                 data-kriteria="${k.id}" data-maks="${s.skor_maks}"
+                 value="${detailMap[s.id] ?? ''}" oninput="updateSubtotal('${k.id}')"
+                 style="width:80px; flex-shrink:0;">
+          <span style="font-size:13px;">${s.item} <span style="color:var(--grey);">(maks. ${s.skor_maks})</span></span>
+        </div>
+      `).join("")}
+      <div id="subtotal_${k.id}" style="margin-top:10px; font-size:12.5px; font-weight:700;"></div>
+    </div>`;
+  }).join("");
+
+  currentKriteria.forEach(k => updateSubtotal(k.id));
+  window.scrollTo({ top: document.getElementById("formCard").offsetTop - 20, behavior: "smooth" });
+}
+
+function updateSubtotal(kriteriaId) {
+  const items = currentSubKriteria.filter(s => s.kriteria_id === kriteriaId);
+  let total = 0, terisi = 0;
+  for (const s of items) {
+    const el = document.getElementById("sub_" + s.id);
+    if (el && el.value !== "") { total += Number(el.value); terisi++; }
+  }
+  const kriteria = currentKriteria.find(k => k.id === kriteriaId);
+  const el = document.getElementById("subtotal_" + kriteriaId);
+  const warna = terisi === items.length ? "var(--green)" : "var(--grey)";
+  el.innerHTML = `<span style="color:${warna};">Subtotal indikator ini: ${total} / ${kriteria.bobot} poin ${terisi < items.length ? `(${items.length - terisi} item belum diisi)` : "✓"}</span>`;
+}
+
+function updateSubtotalFeature(kriteriaId) {
+  const items = currentSubKriteriaFeature.filter(s => s.kriteria_id === kriteriaId);
+  let total = 0, terisi = 0;
+  for (const s of items) {
+    const el = document.getElementById("subft_" + s.id);
+    if (el && el.value !== "") { total += Number(el.value); terisi++; }
+  }
+  const kriteria = currentKriteriaFeature.find(k => k.id === kriteriaId);
+  const el = document.getElementById("subtotalft_" + kriteriaId);
+  const warna = terisi === items.length ? "var(--green)" : "var(--grey)";
+  el.innerHTML = `<span style="color:${warna};">Subtotal indikator ini: ${total} / ${kriteria.bobot} poin ${terisi < items.length ? `(${items.length - terisi} item belum diisi)` : "✓"}</span>`;
+}
+
+function tutupForm() {
+  document.getElementById("formCard").style.display = "none";
+  currentPesertaId = null;
+}
+
+async function simpanNilai() {
+  if (!currentPesertaId) return;
+
+  // Validasi seluruh sub-item Feature Diri terisi dan tidak melebihi skor maksimal
+  for (const s of currentSubKriteriaFeature) {
+    const el = document.getElementById("subft_" + s.id);
+    if (!el) continue;
+    const skor = Number(el.value);
+    if (el.value === "" || isNaN(skor) || skor < 0 || skor > Number(s.skor_maks)) {
+      alert(`Isi skor 0-${s.skor_maks} untuk item Feature Diri: ${s.item}`);
+      return;
+    }
+  }
+
+  // Validasi seluruh sub-item Kompetensi Kategori terisi dan tidak melebihi skor maksimal masing-masing
+  for (const s of currentSubKriteria) {
+    const el = document.getElementById("sub_" + s.id);
+    if (!el) continue;
+    const skor = Number(el.value);
+    if (el.value === "" || isNaN(skor) || skor < 0 || skor > Number(s.skor_maks)) {
+      alert(`Isi skor 0-${s.skor_maks} untuk item: ${s.item}`);
+      return;
+    }
+  }
+
+  // Simpan skor per sub-item Feature Diri
+  for (const s of currentSubKriteriaFeature) {
+    const skor = Number(document.getElementById("subft_" + s.id).value);
+    const { error } = await sb.from("penilaian_feature_detail").upsert({
+      peserta_id: currentPesertaId, sub_kriteria_id: s.id, pemeriksa_id: profile.id, skor
+    }, { onConflict: "peserta_id,sub_kriteria_id,pemeriksa_id" });
+    if (error) { alert("Gagal menyimpan item Feature Diri: " + error.message); return; }
+  }
+
+  // Agregat Feature Diri per indikator, simpan ke penilaian_feature
+  for (const k of currentKriteriaFeature) {
+    const items = currentSubKriteriaFeature.filter(s => s.kriteria_id === k.id);
+    const totalPoin = items.reduce((sum, s) => sum + Number(document.getElementById("subft_" + s.id).value), 0);
+    const persentase = k.bobot > 0 ? Math.min(100, (totalPoin / k.bobot) * 100) : 0;
+    const { error } = await sb.from("penilaian_feature").upsert({
+      peserta_id: currentPesertaId, kriteria_id: k.id, pemeriksa_id: profile.id, skor: Math.round(persentase * 100) / 100
+    }, { onConflict: "peserta_id,kriteria_id,pemeriksa_id" });
+    if (error) { alert("Gagal menyimpan agregat Feature Diri: " + error.message); return; }
+  }
+
+  // Simpan skor per sub-item Kompetensi Kategori
+  for (const s of currentSubKriteria) {
+    const skor = Number(document.getElementById("sub_" + s.id).value);
+    const { error } = await sb.from("penilaian_berkas_detail").upsert({
+      peserta_id: currentPesertaId, sub_kriteria_id: s.id, pemeriksa_id: profile.id, skor
+    }, { onConflict: "peserta_id,sub_kriteria_id,pemeriksa_id" });
+    if (error) { alert("Gagal menyimpan item: " + error.message); return; }
+  }
+
+  // Hitung agregat per indikator (persentase pencapaian terhadap bobot), simpan ke penilaian_berkas
+  // agar seluruh rekap/laporan yang sudah ada tetap berjalan tanpa perubahan.
+  for (const k of currentKriteria) {
+    const items = currentSubKriteria.filter(s => s.kriteria_id === k.id);
+    const totalPoin = items.reduce((sum, s) => sum + Number(document.getElementById("sub_" + s.id).value), 0);
+    const persentase = k.bobot > 0 ? Math.min(100, (totalPoin / k.bobot) * 100) : 0;
+    const { error } = await sb.from("penilaian_berkas").upsert({
+      peserta_id: currentPesertaId, kriteria_id: k.id, pemeriksa_id: profile.id, skor: Math.round(persentase * 100) / 100
+    }, { onConflict: "peserta_id,kriteria_id,pemeriksa_id" });
+    if (error) { alert("Gagal menyimpan agregat: " + error.message); return; }
+  }
+
+  alert("Penilaian berhasil disimpan.");
+  tutupForm();
+  loadPeserta();
+}
+
+init();
+</script>
+</body>
+</html>

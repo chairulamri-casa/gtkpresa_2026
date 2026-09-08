@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Pemantauan Delegasi</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Pemantauan Delegasi GTKPRESA 2026</h1>
+    <div class="sub" id="kabkotaLabel">Memuat...</div>
+  </div>
+  <div class="right">
+    <span id="userLabel"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Ringkasan Status Delegasi</h2>
+    <p style="font-size:13px; color:var(--grey);">Sejak GTKPRESA 2026, setiap calon peserta mendaftar dan mengunggah berkas <b>secara mandiri</b> melalui akunnya sendiri, memakai token yang Bapak/Ibu bagikan ke masing-masing calon delegasi. Halaman ini hanya menampilkan status terkini — untuk mengubah data, silakan hubungi peserta yang bersangkutan.</p>
+    <div class="grid-3" id="ringkasan"></div>
+  </div>
+
+  <div class="card">
+    <h2>Status per Mata Lomba</h2>
+    <div class="table-wrap"><table id="tblStatus">
+      <thead><tr><th>Mata Lomba</th><th>Token</th><th>Nama Peserta</th><th>Email Terdaftar</th><th>No. HP</th><th>Status Berkas</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let profile;
+
+async function init() {
+  profile = await requireAuth(["admin_kabkota"]);
+  if (!profile) return;
+
+  document.getElementById("userLabel").textContent = profile.nama + " • " + roleLabel(profile.role);
+
+  const { data: kk } = await sb.from("kabupaten_kota").select("*").eq("id", profile.kabkota_id).single();
+  document.getElementById("kabkotaLabel").textContent = "Kabupaten/Kota: " + (kk ? kk.nama : "-");
+
+  await loadStatus();
+}
+
+async function loadStatus() {
+  const { data: kategoriList } = await sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
+  const { data: tokenList } = await sb.from("token_registrasi").select("*").eq("kabkota_id", profile.kabkota_id);
+  const { data: pesertaList } = await sb.from("peserta").select("*, kategori_lomba(nama)").eq("kabkota_id", profile.kabkota_id);
+
+  const tokenByKategori = Object.fromEntries((tokenList||[]).map(t => [t.kategori_id, t]));
+  const pesertaByKategori = Object.fromEntries((pesertaList||[]).map(p => [p.kategori_id, p]));
+
+  const terisi = (pesertaList || []).length;
+  const total = (kategoriList || []).length;
+  const lengkap = (pesertaList || []).filter(p => p.status_verifikasi === "lengkap").length;
+
+  document.getElementById("ringkasan").innerHTML = `
+    <div class="stat-box"><div class="num">${terisi}/${total}</div><div class="label">Slot Terisi</div></div>
+    <div class="stat-box"><div class="num">${lengkap}</div><div class="label">Berkas Lengkap</div></div>
+    <div class="stat-box"><div class="num">${total - terisi}</div><div class="label">Belum Ada Peserta</div></div>
+  `;
+
+  const statusBadge = {
+    diajukan: '<span class="badge badge-grey">Diajukan</span>',
+    lengkap: '<span class="badge badge-green">Berkas Lengkap</span>',
+    tidak_lengkap: '<span class="badge badge-red">Belum Lengkap</span>',
+    didiskualifikasi: '<span class="badge badge-red">Didiskualifikasi</span>'
+  };
+
+  document.querySelector("#tblStatus tbody").innerHTML = (kategoriList || []).map(k => {
+    const token = tokenByKategori[k.id];
+    const peserta = pesertaByKategori[k.id];
+    return `
+      <tr>
+        <td>${k.nama}</td>
+        <td>${token ? (token.status === "sudah_dipakai"
+            ? '<span class="badge badge-green">Sudah Dipakai</span>'
+            : `<span class="badge badge-grey">Belum Dipakai</span> <span style="font-family:monospace; font-size:11.5px;">${token.token}</span>`)
+          : "-"}</td>
+        <td>${peserta ? peserta.nama_lengkap : '<span style="color:var(--grey);">Belum ada peserta</span>'}</td>
+        <td>${peserta && peserta.email ? peserta.email : '<span style="color:var(--grey);">-</span>'}</td>
+        <td>${peserta && peserta.no_hp ? peserta.no_hp : '<span style="color:var(--grey);">-</span>'}</td>
+        <td>${peserta ? (statusBadge[peserta.status_verifikasi] || peserta.status_verifikasi) : "-"}</td>
+      </tr>`;
+  }).join("");
+}
+
+init();
+</script>
+</body>
+</html>

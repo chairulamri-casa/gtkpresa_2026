@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Penilaian Presentasi</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Penilaian Presentasi Grand Final</h1>
+    <div class="sub">Dewan Juri — GTKPRESA 2026</div>
+  </div>
+  <div class="right">
+    <span id="userLabel"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2>Pilih Mata Lomba</h2>
+    <select id="selKategori" onchange="loadPeserta()"></select>
+    <p style="font-size:12.5px; color:var(--grey); margin-top:8px;">
+      Seluruh peserta yang telah dinyatakan <b>Lengkap</b> secara administrasi oleh Tim Pemeriksa Berkas tampil di sini
+      dan wajib mengikuti presentasi &amp; wawancara — tidak ada proses penyaringan nominator.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Daftar Peserta (Lengkap Administrasi)</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Nilai Presentasi dan Nilai Tambah sengaja ditampilkan <b>terpisah</b> — keduanya komponen berbeda dengan bobot berbeda (50% dan 15%) pada Nilai Akhir. Nilai Akhir gabungan (bersama Nilai Berkas dari Tim Pemeriksa) baru dihitung otomatis di halaman Laporan oleh Panitia, setelah kedua juri menyelesaikan penilaian.</p>
+    <div class="table-wrap"><table id="tblPeserta">
+      <thead><tr><th>Nama</th><th>Kab/Kota</th><th>Nilai Presentasi</th><th>Nilai Tambah</th><th>Aksi</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div id="emptyState" class="empty-state" style="display:none;">Belum ada peserta lengkap administrasi pada mata lomba ini.</div>
+  </div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h2 id="formTitle">Form Penilaian Presentasi</h2>
+    <h3>Rubrik Presentasi &amp; Wawancara</h3>
+    <div id="kriteriaForm"></div>
+    <h3 style="margin-top:18px;">Rubrik Nilai Tambah</h3>
+    <p style="font-size:12.5px; color:var(--grey);">Komponen tersendiri dalam Nilai Akhir (bukan bagian dari Nilai Presentasi) — kemampuan bahasa asing, moderasi beragama, dan pemahaman kompetensi sesuai peran.</p>
+    <div id="nilaiTambahForm"></div>
+    <label>Catatan (opsional)</label>
+    <textarea id="catatan" rows="3"></textarea>
+    <button class="btn btn-primary" style="margin-top:14px;" onclick="simpanNilai()">Simpan Penilaian</button>
+    <button class="btn btn-outline" style="margin-top:14px;" onclick="tutupForm()">Tutup</button>
+  </div>
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let profile, currentPesertaId = null, kriteriaPresentasi = [], subKriteriaPresentasi = [];
+let kriteriaNilaiTambah = [];
+
+async function init() {
+  profile = await requireAuth(["juri"]);
+  if (!profile) return;
+  document.getElementById("userLabel").textContent = profile.nama + " • " + roleLabel(profile.role);
+
+  const { data: kp } = await sb.from("kriteria_presentasi").select("*").order("urutan");
+  kriteriaPresentasi = kp || [];
+
+  const { data: knt } = await sb.from("kriteria_nilai_tambah").select("*").order("urutan");
+  kriteriaNilaiTambah = knt || [];
+
+  const { data: kategori } = await sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
+  const list = (profile.kategori_ditugaskan && profile.kategori_ditugaskan.length)
+    ? kategori.filter(k => profile.kategori_ditugaskan.includes(k.id))
+    : kategori;
+
+  document.getElementById("selKategori").innerHTML = list.map(k => `<option value="${k.id}">${k.nama}</option>`).join("");
+  if (list.length) loadPeserta();
+}
+
+async function loadPeserta() {
+  const katId = document.getElementById("selKategori").value;
+  const { data } = await sb.from("peserta").select("*, kabupaten_kota(nama)")
+    .eq("kategori_id", katId).eq("status_verifikasi", "lengkap").order("nama_lengkap");
+
+  const tbody = document.querySelector("#tblPeserta tbody");
+  if (!data || !data.length) {
+    tbody.innerHTML = "";
+    document.getElementById("emptyState").style.display = "block";
+    return;
+  }
+  document.getElementById("emptyState").style.display = "none";
+
+  const rows = [];
+  for (const p of data) {
+    const { data: detail } = await sb.from("penilaian_presentasi_detail").select("skor, kriteria_id").eq("peserta_id", p.id).eq("juri_id", profile.id);
+    const { data: nilaiTambah } = await sb.from("penilaian_nilai_tambah").select("skor, kriteria_id").eq("peserta_id", p.id).eq("juri_id", profile.id);
+
+    let nilaiPresentasi = null;
+    if (detail && detail.length === kriteriaPresentasi.length) {
+      nilaiPresentasi = detail.reduce((sum, d) => {
+        const kr = kriteriaPresentasi.find(k => k.id === d.kriteria_id);
+        return sum + (kr ? d.skor * kr.bobot / 100 : 0);
+      }, 0);
+    }
+
+    let nilaiTambahTotal = null;
+    if (nilaiTambah && nilaiTambah.length === kriteriaNilaiTambah.length) {
+      nilaiTambahTotal = nilaiTambah.reduce((sum, d) => {
+        const kr = kriteriaNilaiTambah.find(k => k.id === d.kriteria_id);
+        return sum + (kr ? d.skor * kr.bobot / 100 : 0);
+      }, 0);
+    }
+
+    rows.push({ p, sudah: (detail && detail.length > 0) || (nilaiTambah && nilaiTambah.length > 0), nilaiPresentasi, nilaiTambahTotal });
+  }
+
+  tbody.innerHTML = rows.map(({p, sudah, nilaiPresentasi, nilaiTambahTotal}) => `
+    <tr>
+      <td>${p.nama_lengkap}</td>
+      <td>${p.kabupaten_kota?.nama || "-"}</td>
+      <td>${nilaiPresentasi !== null ? fmtNum(nilaiPresentasi, 1) : '<span class="badge badge-grey">Belum</span>'}</td>
+      <td>${nilaiTambahTotal !== null ? fmtNum(nilaiTambahTotal, 1) : '<span class="badge badge-grey">Belum</span>'}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="bukaForm('${p.id}','${p.nama_lengkap.replace(/'/g,"")}')">${sudah ? "Ubah Nilai" : "Nilai"}</button></td>
+    </tr>`).join("");
+}
+
+async function bukaForm(pesertaId, nama) {
+  currentPesertaId = pesertaId;
+  document.getElementById("formTitle").textContent = "Form Penilaian — " + nama;
+  document.getElementById("formCard").style.display = "block";
+
+  if (!subKriteriaPresentasi.length) {
+    const { data } = await sb.from("sub_kriteria_presentasi").select("*")
+      .in("kriteria_id", kriteriaPresentasi.map(k => k.id)).order("urutan");
+    subKriteriaPresentasi = data || [];
+  }
+
+  const { data: subDetail } = await sb.from("penilaian_presentasi_subdetail").select("*")
+    .eq("peserta_id", pesertaId).eq("juri_id", profile.id);
+  const detailMap = Object.fromEntries((subDetail||[]).map(d => [d.sub_kriteria_id, d.skor]));
+
+  document.getElementById("kriteriaForm").innerHTML = kriteriaPresentasi.map(k => {
+    const items = subKriteriaPresentasi.filter(s => s.kriteria_id === k.id);
+    return `
+    <div style="border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <b>${k.indikator}</b>
+        <span style="color:var(--gold); font-size:12.5px;">Bobot maksimal: ${k.bobot} poin</span>
+      </div>
+      ${items.map(s => `
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+          <input type="number" min="0" max="${s.skor_maks}" step="0.5" id="sub_${s.id}"
+                 value="${detailMap[s.id] ?? ''}" oninput="updateSubtotalPresentasi('${k.id}')"
+                 style="width:80px; flex-shrink:0;">
+          <span style="font-size:13px;">${s.item} <span style="color:var(--grey);">(maks. ${s.skor_maks})</span></span>
+        </div>
+      `).join("")}
+      <div id="subtotal_${k.id}" style="margin-top:10px; font-size:12.5px; font-weight:700;"></div>
+    </div>`;
+  }).join("");
+
+  kriteriaPresentasi.forEach(k => updateSubtotalPresentasi(k.id));
+
+  const { data: nilaiTambahAda } = await sb.from("penilaian_nilai_tambah").select("*")
+    .eq("peserta_id", pesertaId).eq("juri_id", profile.id);
+  const nilaiTambahMap = Object.fromEntries((nilaiTambahAda||[]).map(d => [d.kriteria_id, d.skor]));
+
+  document.getElementById("nilaiTambahForm").innerHTML = kriteriaNilaiTambah.map(k => `
+    <div style="margin-bottom:12px;">
+      <label>${k.indikator} <span style="color:var(--gold); font-weight:600;">(Bobot ${k.bobot}%)</span></label>
+      <input type="number" min="0" max="100" id="nt_${k.id}" value="${nilaiTambahMap[k.id] ?? ''}" placeholder="0-100">
+    </div>`).join("");
+
+  const { data: ringkasan } = await sb.from("penilaian_presentasi").select("*").eq("peserta_id", pesertaId).eq("juri_id", profile.id).maybeSingle();
+  document.getElementById("catatan").value = ringkasan?.catatan ?? "";
+
+  window.scrollTo({ top: document.getElementById("formCard").offsetTop - 20, behavior: "smooth" });
+}
+
+function updateSubtotalPresentasi(kriteriaId) {
+  const items = subKriteriaPresentasi.filter(s => s.kriteria_id === kriteriaId);
+  let total = 0, terisi = 0;
+  for (const s of items) {
+    const el = document.getElementById("sub_" + s.id);
+    if (el && el.value !== "") { total += Number(el.value); terisi++; }
+  }
+  const kriteria = kriteriaPresentasi.find(k => k.id === kriteriaId);
+  const el = document.getElementById("subtotal_" + kriteriaId);
+  const warna = terisi === items.length ? "var(--green)" : "var(--grey)";
+  el.innerHTML = `<span style="color:${warna};">Subtotal indikator ini: ${total} / ${kriteria.bobot} poin ${terisi < items.length ? `(${items.length - terisi} item belum diisi)` : "✓"}</span>`;
+}
+
+function tutupForm() {
+  document.getElementById("formCard").style.display = "none";
+  currentPesertaId = null;
+}
+
+async function simpanNilai() {
+  if (!currentPesertaId) return;
+
+  for (const s of subKriteriaPresentasi) {
+    const el = document.getElementById("sub_" + s.id);
+    if (!el) continue;
+    const skor = Number(el.value);
+    if (el.value === "" || isNaN(skor) || skor < 0 || skor > Number(s.skor_maks)) {
+      alert(`Isi skor 0-${s.skor_maks} untuk item: ${s.item}`);
+      return;
+    }
+  }
+
+  for (const k of kriteriaNilaiTambah) {
+    const el = document.getElementById("nt_" + k.id);
+    const skor = Number(el.value);
+    if (el.value === "" || isNaN(skor) || skor < 0 || skor > 100) {
+      alert(`Isi Nilai Tambah 0-100 untuk: ${k.indikator}`);
+      return;
+    }
+  }
+
+  // Simpan skor per sub-item Rubrik Presentasi
+  for (const s of subKriteriaPresentasi) {
+    const skor = Number(document.getElementById("sub_" + s.id).value);
+    const { error } = await sb.from("penilaian_presentasi_subdetail").upsert({
+      peserta_id: currentPesertaId, sub_kriteria_id: s.id, juri_id: profile.id, skor
+    }, { onConflict: "peserta_id,sub_kriteria_id,juri_id" });
+    if (error) { alert("Gagal menyimpan item: " + error.message); return; }
+  }
+
+  // Hitung agregat per indikator (persentase pencapaian terhadap bobot)
+  for (const k of kriteriaPresentasi) {
+    const items = subKriteriaPresentasi.filter(s => s.kriteria_id === k.id);
+    const totalPoin = items.reduce((sum, s) => sum + Number(document.getElementById("sub_" + s.id).value), 0);
+    const persentase = k.bobot > 0 ? Math.min(100, (totalPoin / k.bobot) * 100) : 0;
+    const { error } = await sb.from("penilaian_presentasi_detail").upsert({
+      peserta_id: currentPesertaId, kriteria_id: k.id, juri_id: profile.id, skor: Math.round(persentase * 100) / 100
+    }, { onConflict: "peserta_id,kriteria_id,juri_id" });
+    if (error) { alert("Gagal menyimpan agregat: " + error.message); return; }
+  }
+
+  // Simpan Nilai Tambah (3 komponen)
+  for (const k of kriteriaNilaiTambah) {
+    const skor = Number(document.getElementById("nt_" + k.id).value);
+    const { error } = await sb.from("penilaian_nilai_tambah").upsert({
+      peserta_id: currentPesertaId, kriteria_id: k.id, juri_id: profile.id, skor
+    }, { onConflict: "peserta_id,kriteria_id,juri_id" });
+    if (error) { alert("Gagal menyimpan Nilai Tambah: " + error.message); return; }
+  }
+
+  const { error: e2 } = await sb.from("penilaian_presentasi").upsert({
+    peserta_id: currentPesertaId, juri_id: profile.id,
+    catatan: document.getElementById("catatan").value.trim()
+  }, { onConflict: "peserta_id,juri_id" });
+  if (e2) { alert("Gagal menyimpan ringkasan: " + e2.message); return; }
+
+  alert("Penilaian berhasil disimpan.");
+  tutupForm();
+  loadPeserta();
+}
+
+init();
+</script>
+</body>
+</html>

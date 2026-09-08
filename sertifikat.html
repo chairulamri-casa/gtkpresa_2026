@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sertifikat — GTKPRESA 2026</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar no-print">
+  <div>
+    <h1>Sertifikat &amp; Piagam</h1>
+    <div class="sub">GTKPRESA 2026</div>
+  </div>
+  <div class="right">
+    <button class="btn btn-outline btn-sm" onclick="window.location.href='peserta.html'">← Kembali ke Dashboard</button>
+    <button class="btn btn-primary btn-sm no-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+  </div>
+</div>
+
+<div class="container no-print" id="msgBox"></div>
+
+<div id="sertifikatBox"></div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+const LABEL_STATUS_FINAL = {
+  juara_1: "Juara 1", juara_2: "Juara 2", juara_3: "Juara 3",
+  harapan_1: "Juara Harapan 1", harapan_2: "Juara Harapan 2", harapan_3: "Juara Harapan 3"
+};
+
+function blokTandaTangan(nama, jabatan) {
+  return `
+    <div class="ttd-block">
+      <div>Banda Aceh, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
+      <div style="margin-top:2px;">${jabatan || "Ketua Panitia GTKPRESA 2026"}</div>
+      <div class="garis">${nama || "( ......................................... )"}</div>
+    </div>`;
+}
+
+async function init() {
+  const profile = await requireAuth(["peserta"]);
+  if (!profile) return;
+
+  const { data: p } = await sb.from("peserta").select("*, kategori_lomba(nama), kabupaten_kota(nama)").eq("akun_id", profile.id).maybeSingle();
+  if (!p) return;
+
+  const msgBox = document.getElementById("msgBox");
+  if (p.status_verifikasi !== "lengkap") {
+    msgBox.innerHTML = '<div class="card"><div class="msg msg-error">Sertifikat belum tersedia — status verifikasi berkas Anda belum "Lengkap". Silakan cek kembali setelah Tim Pemeriksa Berkas menyelesaikan verifikasi.</div></div>';
+    return;
+  }
+
+  const { data: settingsRows } = await sb.from("app_settings").select("*").in("key", ["sertifikat_nama_penandatangan", "sertifikat_jabatan_penandatangan"]);
+  const settings = Object.fromEntries((settingsRows||[]).map(s => [s.key, s.value]));
+  const namaTtd = settings.sertifikat_nama_penandatangan || "";
+  const jabatanTtd = settings.sertifikat_jabatan_penandatangan || "";
+
+  const logo = urlLogoKemenag();
+  let html = "";
+
+  // Sertifikat Juara (jika status_final adalah salah satu tingkat juara)
+  if (LABEL_STATUS_FINAL[p.status_final]) {
+    html += `
+    <div class="sertifikat-page">
+      <div class="kop-cert">
+        <img src="${logo}" onerror="this.style.display='none'">
+        <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
+        <div class="instansi-sub">Kantor Wilayah Kementerian Agama Provinsi Aceh</div>
+      </div>
+      <hr>
+      <div class="judul-sert">PIAGAM PENGHARGAAN</div>
+      <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
+      <div class="isi-sert">Diberikan kepada:</div>
+      <div class="nama-penerima">${p.nama_lengkap}</div>
+      <div class="isi-sert">
+        ${p.kabupaten_kota?.nama || "-"}<br>
+        Sebagai <b>${LABEL_STATUS_FINAL[p.status_final]}</b> pada Anugerah Guru dan Tenaga Kependidikan Prestasi (GTKPRESA)<br>
+        Provinsi Aceh Tahun 2026, Kategori <b>${p.kategori_lomba?.nama || "-"}</b>.
+      </div>
+      ${blokTandaTangan(namaTtd, jabatanTtd)}
+    </div>`;
+  }
+
+  // Sertifikat Partisipasi (selalu ada utk status berkas Lengkap)
+  html += `
+    <div class="sertifikat-page">
+      <div class="kop-cert">
+        <img src="${logo}" onerror="this.style.display='none'">
+        <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
+        <div class="instansi-sub">Kantor Wilayah Kementerian Agama Provinsi Aceh</div>
+      </div>
+      <hr>
+      <div class="judul-sert">SERTIFIKAT</div>
+      <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
+      <div class="isi-sert">Diberikan kepada:</div>
+      <div class="nama-penerima">${p.nama_lengkap}</div>
+      <div class="isi-sert">
+        ${p.kabupaten_kota?.nama || "-"}<br>
+        Sebagai <b>Peserta</b> pada Anugerah Guru dan Tenaga Kependidikan Prestasi (GTKPRESA)<br>
+        Provinsi Aceh Tahun 2026, Kategori <b>${p.kategori_lomba?.nama || "-"}</b>.
+      </div>
+      ${blokTandaTangan(namaTtd, jabatanTtd)}
+    </div>`;
+
+  document.getElementById("sertifikatBox").innerHTML = html;
+}
+
+init();
+</script>
+</body>
+</html>

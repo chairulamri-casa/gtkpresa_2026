@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Registrasi Peserta</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-box" style="max-width:440px;">
+    <h1>Registrasi Peserta</h1>
+    <div class="sub">GTKPRESA 2026 — Kanwil Kemenag Provinsi Aceh</div>
+    <div id="msg"></div>
+
+    <div id="gerbangTanggal" style="display:none;"></div>
+
+    <div id="stepToken">
+      <p style="font-size:13px; color:var(--grey); margin-top:10px;">Masukkan token yang diberikan oleh Kantor Kementerian Agama Kabupaten/Kota Anda. Token ini terkunci untuk 1 mata lomba tertentu dan hanya bisa dipakai 1 kali.</p>
+      <label>Token</label>
+      <input type="text" id="token" placeholder="Contoh: 593507B7" style="text-transform:uppercase; letter-spacing:1px; font-weight:700;">
+      <button class="btn btn-primary" style="width:100%; margin-top:16px; padding:11px;" onclick="cekToken()">Lanjutkan</button>
+    </div>
+
+    <div id="stepDaftar" style="display:none;">
+      <div id="infoSlot" style="background:var(--bg-soft,#F5F7F5); border-left:3px solid var(--green); padding:10px 12px; border-radius:6px; margin:14px 0; font-size:13px;"></div>
+      <label>Nama Lengkap (sesuai KTP/SK)</label>
+      <input type="text" id="nama">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="email aktif milik Anda sendiri">
+      <label>Kata Sandi</label>
+      <input type="password" id="password" placeholder="minimal 6 karakter">
+      <label>Ulangi Kata Sandi</label>
+      <input type="password" id="password2">
+      <button class="btn btn-primary" style="width:100%; margin-top:16px; padding:11px;" onclick="daftarAkun()">Daftar &amp; Masuk</button>
+      <button class="btn btn-outline" style="width:100%; margin-top:8px; padding:11px;" onclick="batalToken()">Kembali</button>
+    </div>
+
+    <div class="footer-note" style="margin-top:18px;">Sudah punya akun? <a href="index.html">Masuk di sini</a></div>
+    <a class="info-trigger" onclick="bukaModalInfo()">📄 Baca Juknis &amp; Jadwal Pelaksanaan</a>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalInfo" onclick="if(event.target===this) tutupModalInfo()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="tutupModalInfo()">✕</button>
+    <h2>📄 Dokumen &amp; Jadwal Resmi</h2>
+    <p style="font-size:13px;">
+      <a href="#" id="linkJuknis" target="_blank" class="btn btn-outline btn-sm">📄 Baca / Unduh Juknis GTKPRESA 2026 (PDF)</a>
+    </p>
+    <h3 style="margin-top:18px;">Jadwal Pelaksanaan</h3>
+    <div id="jadwalBox"></div>
+  </div>
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let tokenValid = null;
+
+async function cekGerbangTanggal() {
+  const info = await cekInfoPendaftaran();
+  const box = document.getElementById("gerbangTanggal");
+  const stepToken = document.getElementById("stepToken");
+  if (!info) return; // gagal cek -> biarkan form tampil normal, jgn blokir krn error jaringan
+
+  if (info.sedang_buka) {
+    box.style.display = "none";
+    stepToken.style.display = "block";
+    return;
+  }
+
+  stepToken.style.display = "none";
+  const now = new Date(info.sekarang);
+  const mulai = new Date(info.tanggal_mulai);
+  box.style.display = "block";
+  if (now < mulai) {
+    box.innerHTML = `<div class="msg msg-error">🔒 Pendaftaran GTKPRESA 2026 <b>belum dibuka</b>.<br>Akan mulai dibuka pada <b>${fmtTanggalWIB(info.tanggal_mulai)}</b>. Silakan kembali lagi setelah tanggal tersebut.</div>`;
+  } else {
+    box.innerHTML = `<div class="msg msg-error">🔒 Pendaftaran GTKPRESA 2026 <b>sudah ditutup</b> sejak ${fmtTanggalWIB(info.tanggal_tutup)}.<br>Hubungi Panitia GTKPRESA bila ada kendala.</div>`;
+  }
+}
+
+async function cekToken() {
+  const token = document.getElementById("token").value.trim().toUpperCase();
+  const msg = document.getElementById("msg");
+  msg.innerHTML = "";
+  if (!token) { msg.innerHTML = '<div class="msg msg-error">Token wajib diisi.</div>'; return; }
+
+  const { data, error } = await sb.rpc("cek_token", { p_token: token });
+
+  if (error || !data || !data.valid) {
+    msg.innerHTML = `<div class="msg msg-error">${(data && data.pesan) || "Token tidak valid."}</div>`;
+    return;
+  }
+
+  tokenValid = token;
+  document.getElementById("infoSlot").innerHTML =
+    `<b>Kabupaten/Kota:</b> ${data.kabkota}<br><b>Mata Lomba:</b> ${data.kategori}`;
+  document.getElementById("stepToken").style.display = "none";
+  document.getElementById("stepDaftar").style.display = "block";
+  msg.innerHTML = "";
+}
+
+function batalToken() {
+  tokenValid = null;
+  document.getElementById("stepDaftar").style.display = "none";
+  document.getElementById("stepToken").style.display = "block";
+}
+
+async function daftarAkun() {
+  const msg = document.getElementById("msg");
+  msg.innerHTML = "";
+  const nama = document.getElementById("nama").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const password2 = document.getElementById("password2").value;
+
+  if (!nama || !email || !password) { msg.innerHTML = '<div class="msg msg-error">Semua kolom wajib diisi.</div>'; return; }
+  if (password.length < 6) { msg.innerHTML = '<div class="msg msg-error">Kata sandi minimal 6 karakter.</div>'; return; }
+  if (password !== password2) { msg.innerHTML = '<div class="msg msg-error">Ulangi kata sandi tidak sama.</div>'; return; }
+  if (!tokenValid) { msg.innerHTML = '<div class="msg msg-error">Token belum divalidasi. Ulangi dari awal.</div>'; batalToken(); return; }
+
+  // 1) Buat akun login sendiri (self-service signup)
+  const { data: signUpData, error: signUpError } = await sb.auth.signUp({ email, password });
+  if (signUpError) {
+    msg.innerHTML = `<div class="msg msg-error">Gagal membuat akun: ${signUpError.message}</div>`;
+    return;
+  }
+  if (!signUpData.session) {
+    msg.innerHTML = '<div class="msg msg-error">Akun dibuat tetapi sesi login tidak aktif. Coba masuk manual di halaman Login, atau hubungi Admin Provinsi.</div>';
+    return;
+  }
+
+  // 2) Klaim slot via token (atomik, lewat fungsi database)
+  const { data: hasil, error: rpcError } = await sb.rpc("daftar_dengan_token", {
+    p_token: tokenValid,
+    p_nama_lengkap: nama,
+    p_email: email
+  });
+
+  if (rpcError) {
+    msg.innerHTML = `<div class="msg msg-error">Akun berhasil dibuat, tetapi token gagal diproses: ${rpcError.message}. Silakan masuk lewat halaman Login dan hubungi Admin Provinsi untuk melengkapi data.</div>`;
+    return;
+  }
+
+  msg.innerHTML = '<div class="msg msg-success">Registrasi berhasil! Mengalihkan ke dashboard Anda...</div>';
+  setTimeout(() => { window.location.href = "peserta.html"; }, 1200);
+}
+
+cekGerbangTanggal();
+renderJadwalKegiatan("jadwalBox");
+document.getElementById("linkJuknis").href = urlJuknisPdf();
+</script>
+</body>
+</html>

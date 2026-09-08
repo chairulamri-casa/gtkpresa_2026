@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Dashboard Peserta</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Dashboard Peserta GTKPRESA 2026</h1>
+    <div class="sub" id="infoLabel">Memuat...</div>
+  </div>
+  <div class="right">
+    <span id="userLabel"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card" id="statusCard">
+    <h2>Status Pendaftaran</h2>
+    <div class="grid-2">
+      <div class="stat-box"><div class="num" id="mataLombaLabel">-</div><div class="label">Mata Lomba</div></div>
+      <div class="stat-box"><div class="num" id="statusLabel">-</div><div class="label">Status Verifikasi Berkas</div></div>
+    </div>
+    <div id="statusTutupMsg"></div>
+    <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='kartu-peserta.html'">🪪 Cetak Kartu Peserta</button>
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='sertifikat.html'">📜 Sertifikat &amp; Piagam</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Panduan Kriteria Penilaian — <span id="kategoriNamaPanduan"></span></h2>
+    <p style="font-size:12.5px; color:var(--grey);">Setiap kriteria memiliki bobot nilai masing-masing. Siapkan dan unggah bukti pendukung sesuai contoh berikut untuk kriteria yang relevan dengan rekam jejak Anda.</p>
+    <div id="panduanKriteria"></div>
+  </div>
+
+  <div class="card">
+    <h2>Biodata Diri</h2>
+    <div id="biodataMsg"></div>
+    <form id="formBiodata">
+      <div class="grid-2">
+        <div><label>Nama Lengkap *</label><input type="text" id="nama_lengkap" required></div>
+        <div><label>NIP/NRG</label><input type="text" id="nrg"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Jabatan Fungsional</label><input type="text" id="jabatan_fungsional"></div>
+        <div><label>Jabatan (Guru/Kepala Madrasah/Pengawas/Laboran/Pustakawan) *</label><input type="text" id="jabatan" required></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Pangkat/Golongan</label><input type="text" id="pangkat_golongan"></div>
+        <div><label>Unit Kerja / Madrasah / RA *</label><input type="text" id="unit_kerja" required></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Tempat Lahir</label><input type="text" id="tempat_lahir"></div>
+        <div><label>Tanggal Lahir</label><input type="date" id="tanggal_lahir"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Jenis Kelamin</label>
+          <select id="jenis_kelamin"><option value="">-- Pilih --</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
+        </div>
+        <div><label>Agama</label><input type="text" id="agama"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>NIP</label><input type="text" id="nip"></div>
+        <div><label>NIK</label><input type="text" id="nik"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Alamat Madrasah</label><input type="text" id="alamat_unit_kerja"></div>
+        <div><label>Kecamatan Madrasah</label><input type="text" id="kecamatan_madrasah"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Alamat Tempat Tinggal</label><input type="text" id="alamat_tempat_tinggal"></div>
+        <div><label>Kecamatan Tempat Tinggal</label><input type="text" id="kecamatan_tinggal"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Nomor HP (WA) *</label><input type="text" id="no_hp" required></div>
+        <div><label>Alamat Surel (Email)</label><input type="email" id="email"></div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top:14px;">Simpan Biodata</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Dokumen Umum Lainnya</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Untuk bukti pendukung tiap kriteria kompetensi, unggah langsung di kartu kriteria pada bagian "Panduan Kriteria Penilaian" di atas. Bagian ini khusus untuk dokumen umum berikut.</p>
+    <div id="berkasExisting"></div>
+    <h3>Tambah Tautan Berkas</h3>
+    <p style="font-size:12px; color:var(--grey);">Unggah dokumen/video ke Google Drive dengan akses "share for everyone" atau penyimpanan lain, lalu tempel tautannya di sini.</p>
+
+    <div class="msg msg-ok" id="namaFileSaran" style="font-family: monospace; word-break: break-all;"></div>
+    <p style="font-size:11.5px; color:var(--grey); margin-top:-8px; margin-bottom:14px;">
+      ☝️ Beri nama file yang diunggah ke Google Drive persis seperti di atas (sesuai Lampiran 7 Juknis), sebelum menempel tautannya di bawah ini.
+    </p>
+
+    <div class="grid-2">
+      <select id="berkas_jenis" onchange="updateNamaFileSaran()">
+        <option value="feature_diri">Feature Diri (wajib, maks. 4 halaman)</option>
+        <option value="best_practice">Best Practice/Makalah (opsional, maks. 7 halaman)</option>
+        <option value="surat_rekomendasi">Surat Rekomendasi</option>
+        <option value="surat_pernyataan">Surat Pernyataan Kesediaan</option>
+        <option value="surat_pernyataan_keaslian">Surat Pernyataan Keaslian Karya</option>
+        <option value="dokumen_lain">Dokumen Lain</option>
+      </select>
+      <input type="url" id="berkas_url" placeholder="https://drive.google.com/...">
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="tambahBerkas()">Tambah Tautan</button>
+  </div>
+
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let profile, pesertaSaya = null, kategoriSaya = null, currentKriteriaPanduan = [];
+
+async function init() {
+  profile = await requireAuth(["peserta"]);
+  if (!profile) return;
+  document.getElementById("userLabel").textContent = profile.nama + " • " + roleLabel(profile.role);
+
+  const { data: p } = await sb.from("peserta").select("*, kategori_lomba(*), kabupaten_kota(nama)").eq("akun_id", profile.id).maybeSingle();
+  if (!p) {
+    document.getElementById("infoLabel").textContent = "Data peserta tidak ditemukan. Hubungi Admin Provinsi.";
+    return;
+  }
+  pesertaSaya = p;
+  kategoriSaya = p.kategori_lomba;
+
+  document.getElementById("infoLabel").textContent = `${p.kabupaten_kota?.nama || "-"} — ${kategoriSaya?.nama || "-"}`;
+  document.getElementById("mataLombaLabel").textContent = kategoriSaya?.nama || "-";
+
+  const statusBadge = {
+    diajukan: "Diajukan (Belum Diperiksa)",
+    lengkap: "Berkas Lengkap ✓",
+    tidak_lengkap: "Belum Lengkap — Lengkapi Kembali",
+    didiskualifikasi: "Didiskualifikasi"
+  };
+  document.getElementById("statusLabel").textContent = statusBadge[p.status_verifikasi] || p.status_verifikasi;
+
+  const { data: settings } = await sb.from("app_settings").select("*").eq("key", "status_pendaftaran").maybeSingle();
+  if (settings && settings.value === "tutup") {
+    document.getElementById("statusTutupMsg").innerHTML =
+      '<div class="msg msg-error">Pendaftaran telah DITUTUP oleh Panitia. Perubahan biodata/berkas tidak dapat dilakukan lagi.</div>';
+    document.querySelectorAll("input,select,button").forEach(el => el.disabled = true);
+  }
+
+  await loadPanduanKriteria();
+  isiFormBiodata();
+  await renderBerkasList();
+  updateNamaFileSaran();
+
+  document.getElementById("formBiodata").addEventListener("submit", simpanBiodata);
+}
+
+let buktiKriteriaList = [];
+
+async function loadPanduanKriteria() {
+  document.getElementById("kategoriNamaPanduan").textContent = kategoriSaya?.nama || "";
+  const { data: kriteria } = await sb.from("kriteria_penilaian").select("*").eq("kategori_id", kategoriSaya.id).order("urutan");
+  currentKriteriaPanduan = kriteria || [];
+
+  const { data: bukti } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaSaya.id).eq("jenis", "bukti_karya");
+  buktiKriteriaList = bukti || [];
+
+  renderPanduanKriteria();
+}
+
+function renderPanduanKriteria() {
+  document.getElementById("panduanKriteria").innerHTML = currentKriteriaPanduan.map(k => {
+    const buktiUntukKriteriaIni = buktiKriteriaList.filter(b => b.kriteria_id === k.id);
+    return `
+    <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <b style="font-size:13.5px;">${k.indikator}</b>
+        <span style="color:var(--gold); font-size:12px;">Bobot ${k.bobot}%</span>
+      </div>
+      ${k.bukti_pendukung ? `<div style="margin-top:6px; font-size:12.5px; color:var(--grey);">📎 Contoh bukti: ${k.bukti_pendukung}</div>` : ""}
+
+      ${buktiUntukKriteriaIni.length ? `
+        <div style="margin-top:10px;">
+          ${buktiUntukKriteriaIni.map(b => `
+            <div style="display:flex; align-items:flex-start; gap:8px; padding:4px 0;">
+              <div style="flex:1;">${renderTautanBukti(b.url)}</div>
+              <button class="btn btn-danger btn-sm" style="padding:2px 8px; flex-shrink:0;" onclick="hapusBuktiKriteria('${b.id}')">Hapus</button>
+            </div>`).join("")}
+        </div>` : ""}
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <input type="url" id="bukti_url_${k.id}" placeholder="Tempel tautan bukti untuk kriteria ini..." style="flex:1; font-size:12.5px; padding:7px 10px;">
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0;" onclick="tambahBuktiKriteria('${k.id}')">Tambah</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function tambahBuktiKriteria(kriteriaId) {
+  const input = document.getElementById("bukti_url_" + kriteriaId);
+  const url = input.value.trim();
+  if (!url) { alert("Isi tautan bukti terlebih dahulu."); return; }
+  const { error } = await sb.from("berkas_peserta").insert({
+    peserta_id: pesertaSaya.id, jenis: "bukti_karya", kriteria_id: kriteriaId, url
+  });
+  if (error) { alert("Gagal: " + error.message); return; }
+  input.value = "";
+  await loadPanduanKriteria();
+}
+
+async function hapusBuktiKriteria(id) {
+  if (!confirm("Hapus tautan bukti ini?")) return;
+  await sb.from("berkas_peserta").delete().eq("id", id);
+  await loadPanduanKriteria();
+}
+
+function isiFormBiodata() {
+  const p = pesertaSaya;
+  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja",
+    "tempat_lahir","tanggal_lahir","jenis_kelamin","agama","nip","nik","alamat_unit_kerja","kecamatan_madrasah",
+    "alamat_tempat_tinggal","kecamatan_tinggal","no_hp","email"];
+  fields.forEach(f => { const el = document.getElementById(f); if (el) el.value = p[f] || ""; });
+}
+
+async function simpanBiodata(e) {
+  e.preventDefault();
+  const msg = document.getElementById("biodataMsg");
+  msg.innerHTML = "";
+  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja",
+    "tempat_lahir","tanggal_lahir","jenis_kelamin","agama","nip","nik","alamat_unit_kerja","kecamatan_madrasah",
+    "alamat_tempat_tinggal","kecamatan_tinggal","no_hp","email"];
+  const payload = {};
+  fields.forEach(f => { const el = document.getElementById(f); if (el) payload[f] = el.value.trim() || null; });
+
+  const { error } = await sb.from("peserta").update(payload).eq("id", pesertaSaya.id);
+  if (error) { msg.innerHTML = `<div class="msg msg-error">Gagal menyimpan: ${error.message}</div>`; return; }
+  msg.innerHTML = '<div class="msg msg-ok">Biodata berhasil disimpan.</div>';
+  Object.assign(pesertaSaya, payload);
+}
+
+function slugifyNama(text) {
+  return (text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]/g, "");
+}
+const LABEL_MATA_LOMBA = {
+  "Guru Inspiratif": "GuruInspiratif", "Guru Dedikatif": "GuruDedikatif", "Guru Inovatif": "GuruInovatif",
+  "Tendik Inspiratif": "TendikInspiratif", "Tendik Dedikatif": "TendikDedikatif", "Tendik Inovatif": "TendikInovatif",
+};
+const LABEL_JENIS_BERKAS = {
+  feature_diri: "FeatureDiri", best_practice: "BestPractice",
+  surat_rekomendasi: "SuratRekomendasi", surat_pernyataan: "SuratPernyataan",
+  surat_pernyataan_keaslian: "PernyataanKeaslian", dokumen_lain: "DokumenLain",
+};
+
+async function getKabkotaNama() {
+  const { data } = await sb.from("kabupaten_kota").select("nama").eq("id", pesertaSaya.kabkota_id).maybeSingle();
+  return data?.nama || "";
+}
+
+async function updateNamaFileSaran() {
+  const kab = slugifyNama(await getKabkotaNama());
+  const lomba = LABEL_MATA_LOMBA[kategoriSaya?.nama] || slugifyNama(kategoriSaya?.nama);
+  const nama = slugifyNama(pesertaSaya.nama_lengkap);
+  const jenis = LABEL_JENIS_BERKAS[document.getElementById("berkas_jenis").value];
+  const saran = `${kab}_${lomba}_${nama}_${jenis}`;
+  document.getElementById("namaFileSaran").textContent = saran + ".pdf (atau .mp4/.docx sesuai jenis file)";
+}
+
+async function renderBerkasList() {
+  const { data } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaSaya.id).neq("jenis", "bukti_karya").order("uploaded_at", { ascending: false });
+  const label = {
+    feature_diri: "Feature Diri", best_practice: "Best Practice/Makalah",
+    surat_rekomendasi: "Surat Rekomendasi", surat_pernyataan: "Surat Pernyataan Kesediaan",
+    surat_pernyataan_keaslian: "Surat Pernyataan Keaslian Karya", dokumen_lain: "Dokumen Lain"
+  };
+  document.getElementById("berkasExisting").innerHTML = (data && data.length)
+    ? data.map(b => `<div style="padding:6px 0; border-bottom:1px solid var(--border);">
+        <b>${label[b.jenis] || b.jenis}:</b>
+        <button class="btn btn-danger btn-sm" style="margin-left:8px; float:right;" onclick="hapusBerkas('${b.id}')">Hapus</button>
+        ${renderTautanBukti(b.url)}
+      </div>`).join("")
+    : '<div class="empty-state">Belum ada berkas diunggah.</div>';
+}
+
+async function tambahBerkas() {
+  const jenis = document.getElementById("berkas_jenis").value;
+  const url = document.getElementById("berkas_url").value.trim();
+  if (!url) { alert("Isi tautan berkas terlebih dahulu."); return; }
+  const { error } = await sb.from("berkas_peserta").insert({ peserta_id: pesertaSaya.id, jenis, url });
+  if (error) { alert("Gagal: " + error.message); return; }
+  document.getElementById("berkas_url").value = "";
+  renderBerkasList();
+}
+
+async function hapusBerkas(id) {
+  if (!confirm("Hapus tautan berkas ini?")) return;
+  await sb.from("berkas_peserta").delete().eq("id", id);
+  renderBerkasList();
+}
+
+init();
+</script>
+</body>
+</html>

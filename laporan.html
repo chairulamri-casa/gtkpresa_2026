@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Laporan &amp; Rekap Nilai</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Laporan &amp; Rekap Nilai</h1>
+    <div class="sub">GTKPRESA 2026 — Kanwil Kemenag Provinsi Aceh</div>
+  </div>
+  <div class="right">
+    <span id="userLabel"></span>
+    <button class="btn btn-outline btn-sm" id="btnKembaliAdmin" style="display:none;" onclick="window.location.href='admin.html'">← Panel Admin</button>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2>Pilih Mata Lomba</h2>
+    <select id="selKategori" onchange="loadRekap()"></select>
+    <button class="btn btn-outline btn-sm" style="margin-left:8px;" onclick="window.print()">Cetak / Simpan PDF</button>
+    <button class="btn btn-primary btn-sm" style="margin-left:8px;" onclick="unduhExcelSemua()">📥 Unduh Excel (Semua Mata Lomba)</button>
+    <div id="unduhMsg" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rekap Nilai Berkas &amp; Verifikasi Administrasi</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Status Lengkap/Tidak Lengkap ditetapkan oleh Tim Pemeriksa Berkas. Seluruh peserta berstatus <b>Lengkap</b> otomatis maju ke tahap presentasi &amp; wawancara — tidak ada proses penyaringan nominator.</p>
+    <div class="table-wrap"><table id="tblBerkas">
+      <thead><tr><th>#</th><th>Nama</th><th>Kab/Kota</th><th>Nilai Berkas</th><th>Status Administrasi</th><th>Status Akhir</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Rekap Nilai Akhir (Peserta Lengkap Administrasi — Pasca Presentasi)</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Nilai Akhir = 35% Nilai Berkas + 50% Nilai Presentasi &amp; Wawancara + 15% Nilai Tambah (sesuai pengaturan). Tetapkan Juara 1-3 dan Harapan 1-3.</p>
+    <div class="table-wrap"><table id="tblAkhir">
+      <thead><tr><th>#</th><th>Nama</th><th>Kab/Kota</th><th>Nilai Berkas</th><th>Nilai Presentasi</th><th>Nilai Tambah</th><th>Nilai Akhir</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let profile;
+
+async function init() {
+  profile = await requireAuth(["panitia","admin_provinsi"]);
+  if (!profile) return;
+  document.getElementById("userLabel").textContent = profile.nama + " • " + roleLabel(profile.role);
+  if (profile.role === "admin_provinsi") {
+    document.getElementById("btnKembaliAdmin").style.display = "inline-block";
+  }
+
+  const { data: kategori } = await sb.from("kategori_lomba").select("*").order("urutan");
+  document.getElementById("selKategori").innerHTML = kategori.map(k => `<option value="${k.id}">${k.nama}</option>`).join("");
+  if (kategori.length) loadRekap();
+}
+
+async function loadRekap() {
+  const katId = document.getElementById("selKategori").value;
+  const { data } = await sb.from("v_nilai_akhir").select("*").eq("kategori_id", katId).order("nilai_berkas", { ascending: false });
+  const { data: pesertaStatus } = await sb.from("peserta").select("id, status_final, status_verifikasi").eq("kategori_id", katId);
+  const statusMap = Object.fromEntries((pesertaStatus||[]).map(p => [p.id, p]));
+
+  const verifLabel = {
+    diajukan: '<span class="badge badge-grey">Belum Diverifikasi</span>',
+    lengkap: '<span class="badge badge-green">Lengkap</span>',
+    tidak_lengkap: '<span class="badge badge-red">Tidak Lengkap</span>',
+    didiskualifikasi: '<span class="badge badge-red">Didiskualifikasi</span>'
+  };
+  const statusFinalLabel = {
+    peserta: '<span class="badge badge-grey">Peserta</span>',
+    juara_1: '<span class="badge badge-green">Juara 1</span>',
+    juara_2: '<span class="badge badge-green">Juara 2</span>',
+    juara_3: '<span class="badge badge-green">Juara 3</span>',
+    harapan_1: '<span class="badge badge-green">Harapan 1</span>',
+    harapan_2: '<span class="badge badge-green">Harapan 2</span>',
+    harapan_3: '<span class="badge badge-green">Harapan 3</span>',
+    tidak_lolos: '<span class="badge badge-red">Tidak Lolos</span>',
+    gugur_tidak_dilombakan: '<span class="badge badge-red">Gugur (Tidak Dilombakan)</span>'
+  };
+
+  // Tabel berkas (semua peserta, urut nilai berkas)
+  document.querySelector("#tblBerkas tbody").innerHTML = (data||[]).map((r,i) => {
+    const st = statusMap[r.peserta_id] || {};
+    return `
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.nama_lengkap}</td>
+      <td>${r.kabkota_nama}</td>
+      <td>${fmtNum(r.nilai_berkas,2)}</td>
+      <td>${verifLabel[st.status_verifikasi] || "-"}</td>
+      <td>${statusFinalLabel[st.status_final] || "-"}</td>
+    </tr>`;
+  }).join("");
+
+  // Tabel akhir: seluruh peserta berstatus verifikasi 'lengkap' (otomatis maju presentasi), urut nilai akhir
+  const lolosAdministrasi = (data||[]).filter(r => statusMap[r.peserta_id]?.status_verifikasi === 'lengkap')
+    .sort((a,b) => b.nilai_akhir - a.nilai_akhir);
+
+  const winnerOptions = ['juara_1','juara_2','juara_3','harapan_1','harapan_2','harapan_3'];
+  document.querySelector("#tblAkhir tbody").innerHTML = lolosAdministrasi.map((r,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.nama_lengkap}</td>
+      <td>${r.kabkota_nama}</td>
+      <td>${fmtNum(r.nilai_berkas,2)}</td>
+      <td>${fmtNum(r.nilai_presentasi,2)}</td>
+      <td>${fmtNum(r.nilai_tambah,2)}</td>
+      <td><b>${fmtNum(r.nilai_akhir,2)}</b></td>
+      <td>${statusFinalLabel[statusMap[r.peserta_id]?.status_final] || "-"}</td>
+      <td>
+        ${(profile.role === 'admin_provinsi' || profile.role === 'panitia') ? `
+        <select onchange="setStatus('${r.peserta_id}', this.value)" style="width:auto; display:inline-block; padding:4px 6px; font-size:12px;">
+          <option value="">-- Tetapkan --</option>
+          ${winnerOptions.map(o => `<option value="${o}">${o.replace('_',' ')}</option>`).join("")}
+        </select>` : ""}
+      </td>
+    </tr>`).join("");
+}
+
+async function setStatus(pesertaId, status) {
+  if (!status) return;
+  const { error } = await sb.from("peserta").update({ status_final: status }).eq("id", pesertaId);
+  if (error) { alert("Gagal: " + error.message); return; }
+  loadRekap();
+}
+
+async function unduhExcelSemua() {
+  const msg = document.getElementById("unduhMsg");
+  msg.innerHTML = '<div class="msg msg-ok">Menyiapkan file, mohon tunggu...</div>';
+
+  const { data: semuaKategori } = await sb.from("kategori_lomba").select("*").order("urutan");
+  const wb = XLSX.utils.book_new();
+  const labelStatus = {
+    juara_1: "Juara 1", juara_2: "Juara 2", juara_3: "Juara 3",
+    harapan_1: "Harapan 1", harapan_2: "Harapan 2", harapan_3: "Harapan 3",
+    peserta: "Peserta", tidak_lolos: "Tidak Lolos"
+  };
+
+  for (const kat of (semuaKategori || [])) {
+    const { data } = await sb.from("v_nilai_akhir").select("*")
+      .eq("kategori_id", kat.id).order("nilai_akhir", { ascending: false });
+    const { data: statusData } = await sb.from("peserta").select("id, status_final").eq("kategori_id", kat.id);
+    const statusMap = Object.fromEntries((statusData||[]).map(p => [p.id, p.status_final]));
+
+    const rows = (data || []).map((r, i) => ({
+      "No": i + 1,
+      "Nama": r.nama_lengkap,
+      "Kab/Kota": r.kabkota_nama,
+      "Nilai Berkas": Number(r.nilai_berkas),
+      "Nilai Presentasi": Number(r.nilai_presentasi),
+      "Nilai Tambah": Number(r.nilai_tambah),
+      "Nilai Akhir": Number(r.nilai_akhir),
+      "Status": labelStatus[statusMap[r.peserta_id]] || "-"
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ "Keterangan": "Belum ada data" }]);
+    ws["!cols"] = [{wch:5},{wch:28},{wch:26},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12}];
+    // nama sheet maks 31 karakter, buang karakter tidak valid
+    const namaSheet = kat.nama.replace(/[\\\/\?\*\[\]:]/g, "").substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, namaSheet);
+  }
+
+  XLSX.writeFile(wb, "GTKPRESA_2026_Rekap_Nilai.xlsx");
+  msg.innerHTML = '<div class="msg msg-ok">File berhasil diunduh.</div>';
+}
+
+init();
+</script>
+</body>
+</html>

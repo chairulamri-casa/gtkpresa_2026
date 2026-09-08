@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kartu Peserta — GTKPRESA 2026</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="topbar no-print">
+  <div>
+    <h1>Kartu Peserta</h1>
+    <div class="sub">GTKPRESA 2026</div>
+  </div>
+  <div class="right">
+    <button class="btn btn-outline btn-sm" onclick="window.location.href='peserta.html'">← Kembali ke Dashboard</button>
+    <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+  </div>
+</div>
+
+<div class="container no-print">
+  <div class="card">
+    <p style="font-size:13px; color:var(--grey);">Cetak kartu ini di kertas biasa, lalu tempel pas foto ukuran <b>4x6</b> pada kotak yang tersedia. Bawa kartu ini saat sesi presentasi &amp; wawancara.</p>
+  </div>
+</div>
+
+<div id="kartuBox"></div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+async function init() {
+  const profile = await requireAuth(["peserta"]);
+  if (!profile) return;
+
+  const { data: p } = await sb.from("peserta").select("*, kategori_lomba(nama), kabupaten_kota(nama)").eq("akun_id", profile.id).maybeSingle();
+  if (!p) return;
+
+  const nomorPeserta = p.id.split("-")[0].toUpperCase();
+
+  document.getElementById("kartuBox").innerHTML = `
+    <div class="kartu-peserta">
+      <div class="kop">
+        <img src="${urlLogoKemenag()}" onerror="this.style.display='none'">
+        <div class="judul">KARTU PESERTA<br>GTKPRESA 2026</div>
+      </div>
+      <div class="foto-box">Tempel Pas Foto<br>4 x 6</div>
+      <div class="data-row"><b>${p.nama_lengkap}</b></div>
+      <div class="data-row">Mata Lomba: <b style="display:inline; font-size:11px;">${p.kategori_lomba?.nama || "-"}</b></div>
+      <div class="data-row">Kab/Kota: <b style="display:inline; font-size:11px;">${p.kabupaten_kota?.nama || "-"}</b></div>
+      <div class="data-row">Jabatan: <b style="display:inline; font-size:11px;">${p.jabatan || "-"}</b></div>
+      <div class="no-peserta">No. Peserta: ${nomorPeserta}</div>
+    </div>`;
+}
+
+init();
+</script>
+</body>
+</html>

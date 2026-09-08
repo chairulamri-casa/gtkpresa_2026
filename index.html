@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTKPRESA 2026 — Login</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-box">
+    <h1>GTKPRESA 2026</h1>
+    <div class="sub">Sistem Pendaftaran &amp; Penilaian<br>Anugerah Guru dan Tenaga Kependidikan Prestasi<br>Kanwil Kemenag Provinsi Aceh</div>
+    <div id="msg"></div>
+    <label>Email</label>
+    <input type="email" id="email" placeholder="nama@kemenag.go.id">
+    <label>Kata Sandi</label>
+    <input type="password" id="password" placeholder="••••••••">
+    <button class="btn btn-primary" style="width:100%; margin-top:18px; padding:11px;" onclick="doLogin()">Masuk</button>
+    <a class="info-trigger" onclick="bukaModalLupaSandi()">🔑 Lupa Kata Sandi?</a>
+    <a class="info-trigger" onclick="bukaModalInfo()">📄 Baca Juknis &amp; Jadwal Pelaksanaan</a>
+    <div class="footer-note" style="margin-top:14px;">Akun Admin Kab/Kota, Pemeriksa Berkas, dan Dewan Juri dibuat oleh Admin Provinsi.<br>Peserta lomba, silakan <a href="registrasi.html">daftar akun sendiri di sini</a> menggunakan token yang diberikan Kankemenag Kab/Kota.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalLupaSandi" onclick="if(event.target===this) tutupModalLupaSandi()">
+  <div class="modal-box" style="max-width:380px;">
+    <button class="modal-close" onclick="tutupModalLupaSandi()">✕</button>
+    <h2>🔑 Lupa Kata Sandi</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Masukkan email yang dipakai saat mendaftar. Kami akan mengirim tautan untuk membuat kata sandi baru ke email tersebut.</p>
+    <div id="lupaMsg"></div>
+    <label>Email</label>
+    <input type="email" id="lupaEmail" placeholder="email yang dipakai saat daftar">
+    <button class="btn btn-primary" style="width:100%; margin-top:14px; padding:10px;" onclick="kirimResetSandi()">Kirim Tautan Reset</button>
+    <p style="font-size:11.5px; color:var(--grey); margin-top:14px;">Tidak ingat email yang dipakai? Hubungi Admin Kabupaten/Kota atau Admin Provinsi untuk dibantu mengeceknya.</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalInfo" onclick="if(event.target===this) tutupModalInfo()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="tutupModalInfo()">✕</button>
+    <h2>📄 Dokumen &amp; Jadwal Resmi</h2>
+    <p style="font-size:13px;">
+      <a href="#" id="linkJuknis" target="_blank" class="btn btn-outline btn-sm">📄 Baca / Unduh Juknis GTKPRESA 2026 (PDF)</a>
+    </p>
+    <h3 style="margin-top:18px;">Jadwal Pelaksanaan</h3>
+    <div id="jadwalBox"></div>
+  </div>
+</div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+async function doLogin() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const msg = document.getElementById("msg");
+  msg.innerHTML = "";
+  if (!email || !password) {
+    msg.innerHTML = '<div class="msg msg-error">Email dan kata sandi wajib diisi.</div>';
+    return;
+  }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    msg.innerHTML = `<div class="msg msg-error">Login gagal: ${error.message}</div>`;
+    return;
+  }
+  const profile = await getProfile();
+  if (!profile) {
+    msg.innerHTML = '<div class="msg msg-error">Akun ditemukan tetapi profil belum diatur. Hubungi Admin Provinsi.</div>';
+    await sb.auth.signOut();
+    return;
+  }
+  const target = {
+    admin_provinsi: "admin.html",
+    admin_kabkota: "daftar.html",
+    pemeriksa_berkas: "penilaian-berkas.html",
+    juri: "penilaian-presentasi.html",
+    panitia: "laporan.html",
+    peserta: "peserta.html"
+  }[profile.role] || "index.html";
+  window.location.href = target;
+}
+
+// Jika sudah login, langsung arahkan sesuai role
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const profile = await getProfile();
+    if (profile) {
+      const target = {
+        admin_provinsi: "admin.html",
+        admin_kabkota: "daftar.html",
+        pemeriksa_berkas: "penilaian-berkas.html",
+        juri: "penilaian-presentasi.html",
+        panitia: "laporan.html",
+        peserta: "peserta.html"
+      }[profile.role];
+      if (target) window.location.href = target;
+    }
+  }
+})();
+
+renderJadwalKegiatan("jadwalBox");
+document.getElementById("linkJuknis").href = urlJuknisPdf();
+
+function bukaModalLupaSandi() {
+  document.getElementById("lupaMsg").innerHTML = "";
+  document.getElementById("lupaEmail").value = "";
+  document.getElementById("modalLupaSandi").classList.add("show");
+}
+function tutupModalLupaSandi() {
+  document.getElementById("modalLupaSandi").classList.remove("show");
+}
+
+async function kirimResetSandi() {
+  const email = document.getElementById("lupaEmail").value.trim();
+  const msg = document.getElementById("lupaMsg");
+  msg.innerHTML = "";
+  if (!email) { msg.innerHTML = '<div class="msg msg-error">Isi email terlebih dahulu.</div>'; return; }
+
+  const redirectUrl = window.location.href.replace(/index\.html.*$/, "reset-password.html");
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+  if (error) {
+    msg.innerHTML = `<div class="msg msg-error">Gagal mengirim: ${error.message}</div>`;
+    return;
+  }
+  msg.innerHTML = '<div class="msg msg-success">Tautan reset sudah dikirim (jika email terdaftar). Cek folder Inbox/Spam.</div>';
+}
+</script>
+</body>
+</html>
