@@ -158,6 +158,12 @@ function urlLogoKemenag() {
   return SUPABASE_URL + "/storage/v1/object/public/aset/logo-kemenag.png";
 }
 
+// URL publik barcode tanda tangan elektronik (Srikandi), bucket "aset" --
+// 1 gambar yang sama dipakai berulang di semua sertifikat.
+function urlBarcodeTtd() {
+  return SUPABASE_URL + "/storage/v1/object/public/aset/barcode-ttd.png";
+}
+
 // ---------------------------------------------------------------------
 // Pop up (modal) info Dokumen & Jadwal -- dipakai di index.html & registrasi.html
 // ---------------------------------------------------------------------

@@ -165,9 +165,10 @@ tr:hover td { background: var(--light-green); }
 .sertifikat-page .nama-penerima { font-size: 26px; font-weight: 700; color: var(--green); margin: 14px 0; border-bottom: 1px solid var(--border); display: inline-block; padding-bottom: 6px; min-width: 60%; }
 .sertifikat-page .isi-sert { font-size: 14px; line-height: 1.9; max-width: 80%; margin: 0 auto; }
 .sertifikat-page .ttd-block { margin-top: 40px; display: inline-block; text-align: center; }
-.sertifikat-page .ttd-block .garis { margin-top: 55px; border-top: 1px solid var(--dark); padding-top: 4px; min-width: 220px; font-weight: 700; }
+.sertifikat-page .ttd-block .garis { margin-top: 8px; border-top: 1px solid var(--dark); padding-top: 4px; min-width: 220px; font-weight: 700; }
 @media print {
   .sertifikat-page { margin: 0; border-width: 6px; }
+  @page { size: landscape; margin: 0; }
 }
 
 /* ---- Responsif layar sempit (HP) ---- */

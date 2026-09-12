@@ -243,6 +243,15 @@
     </div>
 
     <div class="card">
+      <h2>Barcode Tanda Tangan Elektronik (Srikandi)</h2>
+      <p style="font-size:12.5px; color:var(--grey);">Unggah 1 gambar barcode TTE dari Srikandi (PNG/JPG) — dipakai berulang di atas nama penandatangan pada semua Sertifikat &amp; Piagam.</p>
+      <div id="barcodeStatus" style="margin-bottom:10px;"></div>
+      <input type="file" id="barcode_file" accept="image/png,image/jpeg">
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="unggahBarcode()">Unggah / Ganti Barcode</button>
+      <div id="barcodeMsg" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
       <h2>Jadwal Pelaksanaan (Tampil Publik)</h2>
       <p style="font-size:12.5px; color:var(--grey);">Ditampilkan di halaman Login dan Registrasi, tanpa perlu login. Cukup masukkan <b>tahapan penting saja</b> (3-5 baris) — tidak perlu semua rincian teknis/operasional, supaya tetap ringkas dan mudah dibaca calon peserta.</p>
       <div class="table-wrap"><table id="tblJadwal">
@@ -283,6 +292,7 @@ async function init() {
   await loadJadwal();
   await cekStatusJuknis();
   await cekStatusLogo();
+  await cekStatusBarcode();
 }
 
 const JUKNIS_PATH = "juknis-gtkpresa-2026.pdf";
@@ -341,6 +351,35 @@ async function unggahLogo() {
   msg.innerHTML = '<div class="msg msg-ok">Logo berhasil diunggah/diperbarui.</div>';
   fileInput.value = "";
   await cekStatusLogo();
+}
+
+const BARCODE_PATH = "barcode-ttd.png";
+
+async function cekStatusBarcode() {
+  const { data } = await sb.storage.from("aset").list("", { search: BARCODE_PATH });
+  const el = document.getElementById("barcodeStatus");
+  if (data && data.length) {
+    const f = data[0];
+    const { data: urlData } = sb.storage.from("aset").getPublicUrl(BARCODE_PATH);
+    el.innerHTML = `<span class="badge badge-green">Barcode aktif</span> <img src="${urlData.publicUrl}?t=${Date.now()}" style="height:40px; vertical-align:middle; margin-left:8px; border:1px solid var(--border); border-radius:4px; padding:2px;">`;
+  } else {
+    el.innerHTML = '<span class="badge badge-red">Belum ada barcode diunggah</span>';
+  }
+}
+
+async function unggahBarcode() {
+  const fileInput = document.getElementById("barcode_file");
+  const msg = document.getElementById("barcodeMsg");
+  msg.innerHTML = "";
+  const file = fileInput.files[0];
+  if (!file) { msg.innerHTML = '<div class="msg msg-error">Pilih file gambar terlebih dahulu.</div>'; return; }
+
+  const { error } = await sb.storage.from("aset").upload(BARCODE_PATH, file, { upsert: true, contentType: file.type });
+  if (error) { msg.innerHTML = `<div class="msg msg-error">Gagal mengunggah: ${error.message}</div>`; return; }
+
+  msg.innerHTML = '<div class="msg msg-ok">Barcode berhasil diunggah/diperbarui.</div>';
+  fileInput.value = "";
+  await cekStatusBarcode();
 }
 
 function switchTab(name) {

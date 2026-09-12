@@ -35,6 +35,7 @@ function blokTandaTangan(nama, jabatan) {
     <div class="ttd-block">
       <div>Banda Aceh, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
       <div style="margin-top:2px;">${jabatan || "Ketua Panitia GTKPRESA 2026"}</div>
+      <div style="margin-top:8px;"><img src="${urlBarcodeTtd()}" style="height:70px;" onerror="this.style.display='none'"></div>
       <div class="garis">${nama || "( ......................................... )"}</div>
     </div>`;
 }
