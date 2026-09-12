@@ -142,11 +142,13 @@ async function init() {
   };
   document.getElementById("statusLabel").textContent = statusBadge[p.status_verifikasi] || p.status_verifikasi;
 
-  const { data: settings } = await sb.from("app_settings").select("*").eq("key", "status_pendaftaran").maybeSingle();
-  if (settings && settings.value === "tutup") {
-    document.getElementById("statusTutupMsg").innerHTML =
-      '<div class="msg msg-error">Pendaftaran telah DITUTUP oleh Panitia. Perubahan biodata/berkas tidak dapat dilakukan lagi.</div>';
-    document.querySelectorAll("input,select,button").forEach(el => el.disabled = true);
+  const info = await cekInfoPendaftaran();
+  if (info && !info.sedang_buka) {
+    const sudahLewat = new Date(info.sekarang) > new Date(info.tanggal_tutup);
+    document.getElementById("statusTutupMsg").innerHTML = sudahLewat
+      ? `<div class="msg msg-error">🔒 Tenggat pendaftaran &amp; unggah berkas telah berakhir pada <b>${fmtTanggalWIB(info.tanggal_tutup)}</b>. Biodata dan berkas tidak dapat lagi diubah, ditambah, atau dihapus. Data yang sudah tersimpan tetap aman dan bisa dilihat kapan saja.</div>`
+      : '<div class="msg msg-error">🔒 Pendaftaran belum/sedang tidak dibuka oleh Panitia. Hubungi Admin Provinsi bila ada kendala.</div>';
+    document.querySelectorAll("input,select,button,textarea").forEach(el => el.disabled = true);
   }
 
   await loadPanduanKriteria();
