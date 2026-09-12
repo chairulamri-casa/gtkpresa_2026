@@ -152,7 +152,11 @@ async function init() {
     document.getElementById("statusTutupMsg").innerHTML = sudahLewat
       ? `<div class="msg msg-error">🔒 Tenggat pendaftaran &amp; unggah berkas telah berakhir pada <b>${fmtTanggalWIB(info.tanggal_tutup)}</b>. Biodata dan berkas tidak dapat lagi diubah, ditambah, atau dihapus. Data yang sudah tersimpan tetap aman dan bisa dilihat kapan saja.</div>`
       : '<div class="msg msg-error">🔒 Pendaftaran belum/sedang tidak dibuka oleh Panitia. Hubungi Admin Provinsi bila ada kendala.</div>';
-    document.querySelectorAll("input,select,button,textarea").forEach(el => el.disabled = true);
+    // Kunci HANYA form biodata (input/select/textarea di dalamnya, plus tombol
+    // Simpan) -- JANGAN kunci tombol navigasi (Kartu/Sertifikat/Keluar) atau
+    // tombol di bagian lain yg sudah diatur sendiri lewat variabel `terkunci`.
+    document.querySelectorAll("#formBiodata input, #formBiodata select, #formBiodata textarea, #formBiodata button")
+      .forEach(el => el.disabled = true);
   }
 
   await loadPanduanKriteria();
