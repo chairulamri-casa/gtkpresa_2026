@@ -35,13 +35,7 @@
   </div>
 
   <div class="card">
-    <h2>Panduan Kriteria Penilaian — <span id="kategoriNamaPanduan"></span></h2>
-    <p style="font-size:12.5px; color:var(--grey);">Setiap kriteria memiliki bobot nilai masing-masing. Siapkan dan unggah bukti pendukung sesuai contoh berikut untuk kriteria yang relevan dengan rekam jejak Anda.</p>
-    <div id="panduanKriteria"></div>
-  </div>
-
-  <div class="card">
-    <h2>Biodata Diri</h2>
+    <h2>1️⃣ Biodata Diri</h2>
     <div id="biodataMsg"></div>
     <form id="formBiodata">
       <div class="grid-2">
@@ -87,29 +81,37 @@
   </div>
 
   <div class="card">
-    <h2>Dokumen Umum Lainnya</h2>
-    <p style="font-size:12.5px; color:var(--grey);">Untuk bukti pendukung tiap kriteria kompetensi, unggah langsung di kartu kriteria pada bagian "Panduan Kriteria Penilaian" di atas. Bagian ini khusus untuk dokumen umum berikut.</p>
+    <h2>2️⃣ Dokumen Umum (Feature Diri, dst.)</h2>
+    <p style="font-size:12.5px; color:var(--grey);">Feature Diri wajib untuk semua mata lomba. Untuk bukti pendukung tiap kriteria kompetensi, unggah di langkah ke-3 di bagian bawah halaman ini.</p>
     <div id="berkasExisting"></div>
-    <h3>Tambah Tautan Berkas</h3>
-    <p style="font-size:12px; color:var(--grey);">Unggah dokumen/video ke Google Drive dengan akses "share for everyone" atau penyimpanan lain, lalu tempel tautannya di sini.</p>
+    <div id="tambahBerkasForm">
+      <h3>Tambah Tautan Berkas</h3>
+      <p style="font-size:12px; color:var(--grey);">Unggah dokumen/video ke Google Drive dengan akses "share for everyone" atau penyimpanan lain, lalu tempel tautannya di sini.</p>
 
-    <div class="msg msg-ok" id="namaFileSaran" style="font-family: monospace; word-break: break-all;"></div>
-    <p style="font-size:11.5px; color:var(--grey); margin-top:-8px; margin-bottom:14px;">
-      ☝️ Beri nama file yang diunggah ke Google Drive persis seperti di atas (sesuai Lampiran 7 Juknis), sebelum menempel tautannya di bawah ini.
-    </p>
+      <div class="msg msg-ok" id="namaFileSaran" style="font-family: monospace; word-break: break-all;"></div>
+      <p style="font-size:11.5px; color:var(--grey); margin-top:-8px; margin-bottom:14px;">
+        ☝️ Beri nama file yang diunggah ke Google Drive persis seperti di atas (sesuai Lampiran 7 Juknis), sebelum menempel tautannya di bawah ini.
+      </p>
 
-    <div class="grid-2">
-      <select id="berkas_jenis" onchange="updateNamaFileSaran()">
-        <option value="feature_diri">Feature Diri (wajib, maks. 4 halaman)</option>
-        <option value="best_practice">Best Practice/Makalah (opsional, maks. 7 halaman)</option>
-        <option value="surat_rekomendasi">Surat Rekomendasi</option>
-        <option value="surat_pernyataan">Surat Pernyataan Kesediaan</option>
-        <option value="surat_pernyataan_keaslian">Surat Pernyataan Keaslian Karya</option>
-        <option value="dokumen_lain">Dokumen Lain</option>
-      </select>
-      <input type="url" id="berkas_url" placeholder="https://drive.google.com/...">
+      <div class="grid-2">
+        <select id="berkas_jenis" onchange="updateNamaFileSaran()">
+          <option value="feature_diri">Feature Diri (wajib, maks. 4 halaman)</option>
+          <option value="best_practice">Best Practice/Makalah (opsional, maks. 7 halaman)</option>
+          <option value="surat_rekomendasi">Surat Rekomendasi</option>
+          <option value="surat_pernyataan">Surat Pernyataan Kesediaan</option>
+          <option value="surat_pernyataan_keaslian">Surat Pernyataan Keaslian Karya</option>
+          <option value="dokumen_lain">Dokumen Lain</option>
+        </select>
+        <input type="url" id="berkas_url" placeholder="https://drive.google.com/...">
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="tambahBerkas()">Tambah Tautan</button>
     </div>
-    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="tambahBerkas()">Tambah Tautan</button>
+  </div>
+
+  <div class="card">
+    <h2>3️⃣ Bukti Pendukung per Kriteria — <span id="kategoriNamaPanduan"></span></h2>
+    <p style="font-size:12.5px; color:var(--grey);">Setiap kriteria memiliki bobot nilai masing-masing. Siapkan dan unggah bukti pendukung sesuai contoh berikut untuk kriteria yang relevan dengan rekam jejak Anda.</p>
+    <div id="panduanKriteria"></div>
   </div>
 
 </div>
@@ -117,6 +119,7 @@
 <script src="shared/supabase-client.js"></script>
 <script>
 let profile, pesertaSaya = null, kategoriSaya = null, currentKriteriaPanduan = [];
+let terkunci = false;
 
 async function init() {
   profile = await requireAuth(["peserta"]);
@@ -144,6 +147,7 @@ async function init() {
 
   const info = await cekInfoPendaftaran();
   if (info && !info.sedang_buka) {
+    terkunci = true;
     const sudahLewat = new Date(info.sekarang) > new Date(info.tanggal_tutup);
     document.getElementById("statusTutupMsg").innerHTML = sudahLewat
       ? `<div class="msg msg-error">🔒 Tenggat pendaftaran &amp; unggah berkas telah berakhir pada <b>${fmtTanggalWIB(info.tanggal_tutup)}</b>. Biodata dan berkas tidak dapat lagi diubah, ditambah, atau dihapus. Data yang sudah tersimpan tetap aman dan bisa dilihat kapan saja.</div>`
@@ -188,14 +192,15 @@ function renderPanduanKriteria() {
           ${buktiUntukKriteriaIni.map(b => `
             <div style="display:flex; align-items:flex-start; gap:8px; padding:4px 0;">
               <div style="flex:1;">${renderTautanBukti(b.url)}</div>
-              <button class="btn btn-danger btn-sm" style="padding:2px 8px; flex-shrink:0;" onclick="hapusBuktiKriteria('${b.id}')">Hapus</button>
+              ${terkunci ? "" : `<button class="btn btn-danger btn-sm" style="padding:2px 8px; flex-shrink:0;" onclick="hapusBuktiKriteria('${b.id}')">Hapus</button>`}
             </div>`).join("")}
         </div>` : ""}
 
+      ${terkunci ? "" : `
       <div style="margin-top:10px; display:flex; gap:8px;">
         <input type="url" id="bukti_url_${k.id}" placeholder="Tempel tautan bukti untuk kriteria ini..." style="flex:1; font-size:12.5px; padding:7px 10px;">
         <button class="btn btn-primary btn-sm" style="flex-shrink:0;" onclick="tambahBuktiKriteria('${k.id}')">Tambah</button>
-      </div>
+      </div>`}
     </div>`;
   }).join("");
 }
@@ -279,10 +284,12 @@ async function renderBerkasList() {
   document.getElementById("berkasExisting").innerHTML = (data && data.length)
     ? data.map(b => `<div style="padding:6px 0; border-bottom:1px solid var(--border);">
         <b>${label[b.jenis] || b.jenis}:</b>
-        <button class="btn btn-danger btn-sm" style="margin-left:8px; float:right;" onclick="hapusBerkas('${b.id}')">Hapus</button>
+        ${terkunci ? "" : `<button class="btn btn-danger btn-sm" style="margin-left:8px; float:right;" onclick="hapusBerkas('${b.id}')">Hapus</button>`}
         ${renderTautanBukti(b.url)}
       </div>`).join("")
     : '<div class="empty-state">Belum ada berkas diunggah.</div>';
+
+  document.getElementById("tambahBerkasForm").style.display = terkunci ? "none" : "block";
 }
 
 async function tambahBerkas() {
