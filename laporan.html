@@ -49,6 +49,14 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modalRincianJuri" onclick="if(event.target===this) tutupModalRincianJuri()">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="tutupModalRincianJuri()">✕</button>
+    <h2 id="rincianJudul">Rincian Nilai Juri</h2>
+    <div id="rincianIsi"></div>
+  </div>
+</div>
+
 <script src="shared/supabase-client.js"></script>
 <script>
 let profile;
@@ -120,13 +128,60 @@ async function loadRekap() {
       <td><b>${fmtNum(r.nilai_akhir,2)}</b></td>
       <td>${statusFinalLabel[statusMap[r.peserta_id]?.status_final] || "-"}</td>
       <td>
+        <button class="btn btn-outline btn-sm" onclick="bukaRincianJuri('${r.peserta_id}','${r.nama_lengkap.replace(/'/g,"")}')">Rincian Juri</button>
         ${(profile.role === 'admin_provinsi' || profile.role === 'panitia') ? `
-        <select onchange="setStatus('${r.peserta_id}', this.value)" style="width:auto; display:inline-block; padding:4px 6px; font-size:12px;">
+        <select onchange="setStatus('${r.peserta_id}', this.value)" style="width:auto; display:inline-block; padding:4px 6px; font-size:12px; margin-top:6px;">
           <option value="">-- Tetapkan --</option>
           ${winnerOptions.map(o => `<option value="${o}">${o.replace('_',' ')}</option>`).join("")}
         </select>` : ""}
       </td>
     </tr>`).join("");
+}
+
+async function bukaRincianJuri(pesertaId, nama) {
+  document.getElementById("rincianJudul").textContent = "Rincian Nilai Juri — " + nama;
+  document.getElementById("rincianIsi").innerHTML = '<p style="font-size:13px; color:var(--grey);">Memuat...</p>';
+  document.getElementById("modalRincianJuri").classList.add("show");
+
+  const { data: presDetail } = await sb.from("penilaian_presentasi_detail")
+    .select("skor, kriteria_id, juri_id, kriteria_presentasi(indikator, bobot), profiles(nama)")
+    .eq("peserta_id", pesertaId);
+  const { data: tambahDetail } = await sb.from("penilaian_nilai_tambah")
+    .select("skor, kriteria_id, juri_id, kriteria_nilai_tambah(indikator, bobot), profiles(nama)")
+    .eq("peserta_id", pesertaId);
+
+  const juriIds = [...new Set([...(presDetail||[]).map(d=>d.juri_id), ...(tambahDetail||[]).map(d=>d.juri_id)])];
+
+  if (!juriIds.length) {
+    document.getElementById("rincianIsi").innerHTML = '<p style="font-size:13px; color:var(--grey);">Belum ada juri yang menilai peserta ini.</p>';
+    return;
+  }
+
+  const html = juriIds.map(jid => {
+    const namaJuri = (presDetail||[]).find(d=>d.juri_id===jid)?.profiles?.nama
+                   || (tambahDetail||[]).find(d=>d.juri_id===jid)?.profiles?.nama || "Juri";
+    const presRows = (presDetail||[]).filter(d => d.juri_id === jid);
+    const tambahRows = (tambahDetail||[]).filter(d => d.juri_id === jid);
+    const totalPres = presRows.reduce((s,d) => s + d.skor * (d.kriteria_presentasi?.bobot||0) / 100, 0);
+    const totalTambah = tambahRows.reduce((s,d) => s + d.skor * (d.kriteria_nilai_tambah?.bobot||0) / 100, 0);
+    return `
+      <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+        <b style="font-size:13.5px; color:var(--green);">${namaJuri}</b>
+        <div style="margin-top:8px; font-size:12.5px;">
+          <div style="font-weight:600; margin-bottom:2px;">Rubrik Presentasi — Total: ${fmtNum(totalPres,2)}</div>
+          ${presRows.map(d => `<div style="color:var(--grey); padding-left:8px;">${d.kriteria_presentasi?.indikator}: ${fmtNum(d.skor,1)}</div>`).join("")}
+        </div>
+        <div style="margin-top:8px; font-size:12.5px;">
+          <div style="font-weight:600; margin-bottom:2px;">Nilai Tambah — Total: ${fmtNum(totalTambah,2)}</div>
+          ${tambahRows.map(d => `<div style="color:var(--grey); padding-left:8px;">${d.kriteria_nilai_tambah?.indikator}: ${fmtNum(d.skor,1)}</div>`).join("")}
+        </div>
+      </div>`;
+  }).join("");
+
+  document.getElementById("rincianIsi").innerHTML = html + `<p style="font-size:11.5px; color:var(--grey); margin-top:8px;">Nilai Presentasi dan Nilai Tambah pada tabel utama = rata-rata dari seluruh juri di atas.</p>`;
+}
+function tutupModalRincianJuri() {
+  document.getElementById("modalRincianJuri").classList.remove("show");
 }
 
 async function setStatus(pesertaId, status) {

@@ -41,6 +41,9 @@
 
   <div class="card" id="formCard" style="display:none;">
     <h2 id="formTitle">Form Penilaian Presentasi</h2>
+
+    <div id="profilPeserta" style="border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:16px; background:var(--bg-soft,#F5F7F5);"></div>
+
     <h3>Rubrik Presentasi &amp; Wawancara</h3>
     <div id="kriteriaForm"></div>
     <h3 style="margin-top:18px;">Rubrik Nilai Tambah</h3>
@@ -125,10 +128,58 @@ async function loadPeserta() {
     </tr>`).join("");
 }
 
+async function muatProfilPeserta(pesertaId) {
+  const box = document.getElementById("profilPeserta");
+  box.innerHTML = '<p style="font-size:12.5px; color:var(--grey);">Memuat profil peserta...</p>';
+
+  const { data: p } = await sb.from("peserta")
+    .select("*, kabupaten_kota(nama), kategori_lomba(id, nama)")
+    .eq("id", pesertaId).maybeSingle();
+  if (!p) { box.innerHTML = ""; return; }
+
+  const { data: berkas } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaId);
+  const featureDiri = (berkas||[]).find(b => b.jenis === "feature_diri");
+  const bestPractice = (berkas||[]).find(b => b.jenis === "best_practice");
+  const buktiKriteria = (berkas||[]).filter(b => b.jenis === "bukti_karya");
+
+  const { data: kriteria } = await sb.from("kriteria_penilaian").select("*").eq("kategori_id", p.kategori_lomba.id).order("urutan");
+
+  let html = `
+    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+      <div>
+        <b style="font-size:15px; color:var(--green);">${p.nama_lengkap}</b><br>
+        <span style="font-size:12.5px; color:var(--grey);">${p.jabatan || "-"} · ${p.unit_kerja || "-"}</span><br>
+        <span style="font-size:12.5px; color:var(--grey);">${p.kabupaten_kota?.nama || "-"} · ${p.kategori_lomba?.nama || "-"}</span>
+      </div>
+    </div>
+  `;
+
+  html += `<div style="margin-top:6px;"><b style="font-size:12.5px;">Feature Diri</b><br>`;
+  html += featureDiri ? renderTautanBukti(featureDiri.url) : '<span style="font-size:12px; color:var(--red);">Tidak ditemukan</span>';
+  html += `</div>`;
+
+  if (bestPractice) {
+    html += `<div style="margin-top:10px;"><b style="font-size:12.5px;">Best Practice / Makalah</b><br>${renderTautanBukti(bestPractice.url)}</div>`;
+  }
+
+  if (buktiKriteria.length) {
+    html += `<div style="margin-top:10px;"><b style="font-size:12.5px;">Bukti Pendukung Kriteria Kategori</b></div>`;
+    (kriteria||[]).forEach(k => {
+      const rows = buktiKriteria.filter(b => b.kriteria_id === k.id);
+      if (!rows.length) return;
+      html += `<div style="margin-top:6px; font-size:12px;"><i>${k.indikator}</i>${rows.map(b => renderTautanBukti(b.url)).join("")}</div>`;
+    });
+  }
+
+  box.innerHTML = html;
+}
+
 async function bukaForm(pesertaId, nama) {
   currentPesertaId = pesertaId;
   document.getElementById("formTitle").textContent = "Form Penilaian — " + nama;
   document.getElementById("formCard").style.display = "block";
+
+  await muatProfilPeserta(pesertaId);
 
   if (!subKriteriaPresentasi.length) {
     const { data } = await sb.from("sub_kriteria_presentasi").select("*")
@@ -167,8 +218,9 @@ async function bukaForm(pesertaId, nama) {
   const nilaiTambahMap = Object.fromEntries((nilaiTambahAda||[]).map(d => [d.kriteria_id, d.skor]));
 
   document.getElementById("nilaiTambahForm").innerHTML = kriteriaNilaiTambah.map(k => `
-    <div style="margin-bottom:12px;">
+    <div style="margin-bottom:14px;">
       <label>${k.indikator} <span style="color:var(--gold); font-weight:600;">(Bobot ${k.bobot}%)</span></label>
+      ${k.kisi_kisi ? `<div style="font-size:11.5px; color:var(--grey); background:var(--bg-soft,#F5F7F5); border-left:3px solid var(--gold); padding:6px 10px; border-radius:6px; margin:4px 0 6px;">📌 ${k.kisi_kisi}</div>` : ""}
       <input type="number" min="0" max="100" id="nt_${k.id}" value="${nilaiTambahMap[k.id] ?? ''}" placeholder="0-100">
     </div>`).join("");
 
