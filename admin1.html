@@ -200,11 +200,11 @@
     </div>
 
     <div class="card">
-      <h2>Reset Password Akun (Tanpa Email)</h2>
-      <p style="font-size:12.5px; color:var(--grey);">Untuk siapa saja yang lupa kata sandi dan tidak menerima email reset (mis. karena batas kirim email tercapai) — Peserta, Admin Kab/Kota, Tim Pemeriksa Berkas, maupun Dewan Juri. Data terkait TIDAK terhapus — hanya kata sandi login yang diganti. Beri tahu kata sandi baru secara langsung/WhatsApp.</p>
+      <h2>Reset Password Peserta (Tanpa Email)</h2>
+      <p style="font-size:12.5px; color:var(--grey);">Untuk peserta yang lupa kata sandi dan tidak menerima email reset (mis. karena batas kirim email tercapai). Data biodata dan berkas peserta TIDAK terhapus — hanya kata sandi login yang diganti. Beri tahu kata sandi baru ke peserta secara langsung/WhatsApp.</p>
       <div id="resetPwMsg"></div>
-      <label>Cari Akun (nama)</label>
-      <input type="text" id="cariPeserta" placeholder="Ketik nama..." oninput="cariPesertaUntukReset()">
+      <label>Cari Peserta (nama)</label>
+      <input type="text" id="cariPeserta" placeholder="Ketik nama peserta..." oninput="cariPesertaUntukReset()">
       <div id="hasilCariPeserta" style="margin-top:6px;"></div>
       <div id="formResetPw" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
         <div id="pesertaTerpilihInfo" style="font-size:13px; margin-bottom:10px;"></div>
@@ -212,15 +212,6 @@
         <input type="text" id="pw_baru" placeholder="minimal 6 karakter">
         <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="prosesResetPassword()">Ganti Kata Sandi</button>
       </div>
-    </div>
-
-    <div class="card">
-      <h2>🗑️ Hapus Peserta</h2>
-      <p style="font-size:12.5px; color:var(--grey);"><b>Tindakan permanen</b> — menghapus data peserta (biodata, berkas, seluruh nilai yang sudah masuk), akun login terkait (jika sudah pernah daftar via token), dan mengembalikan token ke status "belum dipakai" supaya bisa dipakai ulang. Gunakan untuk data lama/keliru — bukan untuk mendiskualifikasi peserta aktif (pakai fitur ubah Status Verifikasi untuk itu).</p>
-      <div id="hapusPesertaMsg"></div>
-      <label>Cari Peserta (nama)</label>
-      <input type="text" id="cariPesertaHapus" placeholder="Ketik nama peserta..." oninput="cariPesertaUntukHapus()">
-      <div id="hasilCariPesertaHapus" style="margin-top:6px;"></div>
     </div>
   </div>
 
@@ -791,32 +782,20 @@ async function cariPesertaUntukReset() {
   document.getElementById("formResetPw").style.display = "none";
   if (q.length < 2) { hasilBox.innerHTML = ""; return; }
 
-  const { data } = await sb.from("profiles")
-    .select("id, nama, role, kabupaten_kota(nama)")
-    .ilike("nama", `%${q}%`)
-    .neq("role", "admin_provinsi")
+  const { data } = await sb.from("peserta")
+    .select("id, nama_lengkap, akun_id, email, kabupaten_kota(nama), kategori_lomba(nama)")
+    .ilike("nama_lengkap", `%${q}%`)
+    .not("akun_id", "is", null)
     .limit(8);
 
   if (!data || !data.length) { hasilBox.innerHTML = '<div style="font-size:12.5px; color:var(--grey);">Tidak ditemukan.</div>'; return; }
 
-  // Utk yg berperan 'peserta', ambil juga kategori & email dari tabel peserta (info tambahan)
-  const idPeserta = data.filter(p => p.role === "peserta").map(p => p.id);
-  let infoPeserta = {};
-  if (idPeserta.length) {
-    const { data: pesertaRows } = await sb.from("peserta").select("akun_id, email, kategori_lomba(nama)").in("akun_id", idPeserta);
-    infoPeserta = Object.fromEntries((pesertaRows||[]).map(pr => [pr.akun_id, pr]));
-  }
-
-  hasilBox.innerHTML = data.map(p => {
-    const tambahan = p.role === "peserta"
-      ? ` — ${p.kabupaten_kota?.nama || "-"} / ${infoPeserta[p.id]?.kategori_lomba?.nama || "-"}<div style="font-size:11.5px; color:var(--grey);">${infoPeserta[p.id]?.email || "(email belum tercatat)"}</div>`
-      : ` — ${p.kabupaten_kota?.nama || "(semua wilayah)"}`;
-    return `
+  hasilBox.innerHTML = data.map(p => `
     <div style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; cursor:pointer;"
-         onclick='pilihPesertaUntukReset(${JSON.stringify({ akun_id: p.id, nama_lengkap: p.nama }).replace(/'/g, "&apos;")})'>
-      <b>${p.nama}</b> <span class="badge badge-gold" style="font-size:10.5px;">${roleLabel(p.role)}</span>${tambahan}
-    </div>`;
-  }).join("");
+         onclick='pilihPesertaUntukReset(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+      <b>${p.nama_lengkap}</b> — ${p.kabupaten_kota?.nama || "-"} / ${p.kategori_lomba?.nama || "-"}
+      <div style="font-size:11.5px; color:var(--grey);">${p.email || "(email belum tercatat)"}</div>
+    </div>`).join("");
 }
 
 function pilihPesertaUntukReset(p) {
@@ -824,7 +803,7 @@ function pilihPesertaUntukReset(p) {
   document.getElementById("hasilCariPeserta").innerHTML = "";
   document.getElementById("cariPeserta").value = p.nama_lengkap;
   document.getElementById("pesertaTerpilihInfo").innerHTML =
-    `Mengganti sandi untuk: <b>${p.nama_lengkap}</b>`;
+    `Mengganti sandi untuk: <b>${p.nama_lengkap}</b> (${p.kabupaten_kota?.nama || "-"} / ${p.kategori_lomba?.nama || "-"})<br>Email: ${p.email || "-"}`;
   document.getElementById("formResetPw").style.display = "block";
   document.getElementById("pw_baru").value = "";
   document.getElementById("resetPwMsg").innerHTML = "";
@@ -851,46 +830,6 @@ async function prosesResetPassword() {
   document.getElementById("formResetPw").style.display = "none";
   document.getElementById("cariPeserta").value = "";
   pesertaTerpilihUntukReset = null;
-}
-
-// ---------------- HAPUS PESERTA ----------------
-async function cariPesertaUntukHapus() {
-  const q = document.getElementById("cariPesertaHapus").value.trim();
-  const hasilBox = document.getElementById("hasilCariPesertaHapus");
-  if (q.length < 2) { hasilBox.innerHTML = ""; return; }
-
-  const { data } = await sb.from("peserta")
-    .select("id, nama_lengkap, akun_id, status_verifikasi, kabupaten_kota(nama), kategori_lomba(nama)")
-    .ilike("nama_lengkap", `%${q}%`)
-    .limit(8);
-
-  if (!data || !data.length) { hasilBox.innerHTML = '<div style="font-size:12.5px; color:var(--grey);">Tidak ditemukan.</div>'; return; }
-
-  hasilBox.innerHTML = data.map(p => `
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px;">
-      <div>
-        <b>${p.nama_lengkap}</b> — ${p.kabupaten_kota?.nama || "-"} / ${p.kategori_lomba?.nama || "-"}
-        <div style="font-size:11.5px; color:var(--grey);">${p.akun_id ? "✅ Sudah punya akun login" : "➖ Belum ada akun login (data lama)"} · Status: ${p.status_verifikasi}</div>
-      </div>
-      <button class="btn btn-danger btn-sm" style="flex-shrink:0;" onclick='konfirmasiHapusPeserta("${p.id}", "${p.nama_lengkap.replace(/"/g,"")}", ${!!p.akun_id})'>Hapus</button>
-    </div>`).join("");
-}
-
-async function konfirmasiHapusPeserta(pesertaId, nama, adaAkun) {
-  const pesanKonfirmasi = adaAkun
-    ? `Yakin hapus PERMANEN data "${nama}"?\n\nAkun login, biodata, seluruh berkas, dan nilai yang sudah masuk akan terhapus. Token yang dipakai akan dikembalikan ke status belum dipakai.\n\nTindakan ini TIDAK BISA DIBATALKAN.`
-    : `Yakin hapus PERMANEN data "${nama}"?\n\nBiodata, berkas, dan nilai yang sudah masuk akan terhapus.\n\nTindakan ini TIDAK BISA DIBATALKAN.`;
-  if (!confirm(pesanKonfirmasi)) return;
-
-  const msg = document.getElementById("hapusPesertaMsg");
-  msg.innerHTML = "";
-  const { data, error } = await sb.rpc("admin_hapus_peserta", { p_peserta_id: pesertaId });
-
-  if (error) { msg.innerHTML = `<div class="msg msg-error">Gagal: ${error.message}</div>`; return; }
-
-  msg.innerHTML = `<div class="msg msg-ok">Data "${data.nama}" berhasil dihapus.${data.akun_ikut_dihapus ? " Akun login terkait juga ikut dihapus, dan token dikembalikan ke status belum dipakai." : ""}</div>`;
-  document.getElementById("cariPesertaHapus").value = "";
-  document.getElementById("hasilCariPesertaHapus").innerHTML = "";
 }
 
 async function unduhBackupData() {
