@@ -7,13 +7,6 @@
 <link rel="stylesheet" href="shared/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<style>
-  @media print {
-    body * { visibility: hidden; }
-    #areaCetakDaftar, #areaCetakDaftar * { visibility: visible; }
-    #areaCetakDaftar { position: absolute; left: 0; top: 0; width: 100%; }
-  }
-</style>
 </head>
 <body>
 <div class="topbar">
@@ -83,30 +76,6 @@
       <p style="font-size:13px; color:var(--grey);">Murni informatif untuk memantau progres pendaftaran. Tidak ada ambang batas atau mekanisme eliminasi — keenam mata lomba selalu dilaksanakan setiap tahun sesuai Juknis Bab III.D.</p>
       <div class="table-wrap"><table id="tblKuorum">
         <thead><tr><th>Mata Lomba</th><th>Klaster</th><th>Jumlah Peserta Terdaftar</th></tr></thead>
-        <tbody></tbody>
-      </table></div>
-    </div>
-
-    <div class="card">
-      <h2>📋 Matriks Pendaftaran per Kab/Kota</h2>
-      <p style="font-size:12.5px; color:var(--grey);">Kotak hijau berisi nama = sudah terdaftar. Kotak abu-abu "—" = belum ada peserta pada mata lomba itu di kab/kota tersebut.</p>
-      <div class="table-wrap"><table id="tblMatriks" style="font-size:12px;">
-        <thead><tr id="matriksHeader"><th>Kab/Kota</th></tr></thead>
-        <tbody></tbody>
-      </table></div>
-    </div>
-
-    <div class="card no-print">
-      <h2>🖨️ Cetak Daftar Peserta Terdaftar</h2>
-      <p style="font-size:12.5px; color:var(--grey);">Menampilkan hanya peserta yang SUDAH mendaftar (nama, kab/kota, mata lomba, kontak). Klik cetak untuk simpan sebagai PDF atau langsung dicetak.</p>
-      <button class="btn btn-primary btn-sm" onclick="siapkanCetakDaftar()">🖨️ Cetak / Simpan PDF</button>
-    </div>
-
-    <div id="areaCetakDaftar" style="display:none;">
-      <h2 style="text-align:center;">Daftar Peserta Terdaftar — GTKPRESA 2026</h2>
-      <p style="text-align:center; font-size:12px; color:var(--grey);" id="tanggalCetak"></p>
-      <div class="table-wrap"><table id="tblCetakDaftar">
-        <thead><tr><th>#</th><th>Nama</th><th>Kab/Kota</th><th>Mata Lomba</th><th>No. HP</th><th>Email</th></tr></thead>
         <tbody></tbody>
       </table></div>
     </div>
@@ -325,7 +294,6 @@ async function init() {
 
   await loadSettings();
   await loadKuorum();
-  await loadMatriksPendaftaran();
   await loadToken();
   await loadKategoriTab();
   await loadRubrikPresentasi();
@@ -925,51 +893,6 @@ async function konfirmasiHapusPeserta(pesertaId, nama, adaAkun) {
   msg.innerHTML = `<div class="msg msg-ok">Data "${data.nama}" berhasil dihapus.${data.akun_ikut_dihapus ? " Akun login terkait juga ikut dihapus, dan token dikembalikan ke status belum dipakai." : ""}</div>`;
   document.getElementById("cariPesertaHapus").value = "";
   document.getElementById("hasilCariPesertaHapus").innerHTML = "";
-}
-
-async function loadMatriksPendaftaran() {
-  const { data: kabkotaList } = await sb.from("kabupaten_kota").select("*").order("nama");
-  const { data: kategoriList } = await sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
-  const { data: pesertaList } = await sb.from("peserta").select("nama_lengkap, kabkota_id, kategori_id");
-
-  const peta = {};
-  (pesertaList || []).forEach(p => { peta[`${p.kabkota_id}_${p.kategori_id}`] = p.nama_lengkap; });
-
-  document.getElementById("matriksHeader").innerHTML =
-    "<th>Kab/Kota</th>" + kategoriList.map(k => `<th style="min-width:110px;">${k.nama}</th>`).join("");
-
-  document.querySelector("#tblMatriks tbody").innerHTML = (kabkotaList || []).map(kk => `
-    <tr>
-      <td style="font-weight:600; white-space:nowrap;">${kk.nama}</td>
-      ${kategoriList.map(k => {
-        const nama = peta[`${kk.id}_${k.id}`];
-        return nama
-          ? `<td style="background:var(--light-green); color:var(--green); font-weight:600;">${nama}</td>`
-          : `<td style="color:var(--grey); text-align:center;">—</td>`;
-      }).join("")}
-    </tr>`).join("");
-}
-
-async function siapkanCetakDaftar() {
-  const { data } = await sb.from("peserta")
-    .select("nama_lengkap, no_hp, email, kategori_lomba(nama), kabupaten_kota(nama)")
-    .order("kabkota_id");
-
-  document.getElementById("tanggalCetak").textContent =
-    "Dicetak pada " + new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) + " — Total: " + (data?.length || 0) + " peserta";
-
-  document.querySelector("#tblCetakDaftar tbody").innerHTML = (data || []).map((p, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${p.nama_lengkap}</td>
-      <td>${p.kabupaten_kota?.nama || "-"}</td>
-      <td>${p.kategori_lomba?.nama || "-"}</td>
-      <td>${p.no_hp || "-"}</td>
-      <td>${p.email || "-"}</td>
-    </tr>`).join("");
-
-  document.getElementById("areaCetakDaftar").style.display = "block";
-  setTimeout(() => window.print(), 300);
 }
 
 async function unduhBackupData() {
