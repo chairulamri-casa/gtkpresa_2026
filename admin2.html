@@ -194,7 +194,7 @@
     <div class="card">
       <h2>Daftar Akun Terdaftar</h2>
       <div class="table-wrap"><table>
-        <thead><tr><th>Nama</th><th>Peran</th><th>Email</th><th>Kab/Kota atau Penugasan</th><th>Status</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Nama</th><th>Peran</th><th>Kab/Kota atau Penugasan</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody id="tblAkunBody"></tbody>
       </table></div>
     </div>
@@ -672,7 +672,6 @@ async function loadAkun() {
     <tr>
       <td>${a.nama}</td>
       <td>${roleLabel(a.role)}</td>
-      <td style="font-size:12px;">${a.email || "-"}</td>
       <td>${a.kabupaten_kota?.nama || tugas}</td>
       <td>${a.aktif ? '<span class="badge badge-green">Aktif</span>' : '<span class="badge badge-red">Nonaktif</span>'}</td>
       <td>${(a.role === "pemeriksa_berkas" || a.role === "juri") ? `<button class="btn btn-outline btn-sm" onclick='bukaEditPenugasan("${a.id}", ${JSON.stringify(a.kategori_ditugaskan||[])})'>Ubah Penugasan</button> ` : ""}<button class="btn btn-outline btn-sm" onclick="toggleAktifAkun('${a.id}', ${!a.aktif})">${a.aktif ? "Nonaktifkan" : "Aktifkan"}</button></td>
@@ -793,30 +792,29 @@ async function cariPesertaUntukReset() {
   if (q.length < 2) { hasilBox.innerHTML = ""; return; }
 
   const { data } = await sb.from("profiles")
-    .select("id, nama, role, email, kabupaten_kota(nama)")
+    .select("id, nama, role, kabupaten_kota(nama)")
     .ilike("nama", `%${q}%`)
     .neq("role", "admin_provinsi")
     .limit(8);
 
   if (!data || !data.length) { hasilBox.innerHTML = '<div style="font-size:12.5px; color:var(--grey);">Tidak ditemukan.</div>'; return; }
 
-  // Utk yg berperan 'peserta', ambil juga kategori dari tabel peserta (info tambahan)
+  // Utk yg berperan 'peserta', ambil juga kategori & email dari tabel peserta (info tambahan)
   const idPeserta = data.filter(p => p.role === "peserta").map(p => p.id);
   let infoPeserta = {};
   if (idPeserta.length) {
-    const { data: pesertaRows } = await sb.from("peserta").select("akun_id, kategori_lomba(nama)").in("akun_id", idPeserta);
+    const { data: pesertaRows } = await sb.from("peserta").select("akun_id, email, kategori_lomba(nama)").in("akun_id", idPeserta);
     infoPeserta = Object.fromEntries((pesertaRows||[]).map(pr => [pr.akun_id, pr]));
   }
 
   hasilBox.innerHTML = data.map(p => {
     const tambahan = p.role === "peserta"
-      ? ` — ${p.kabupaten_kota?.nama || "-"} / ${infoPeserta[p.id]?.kategori_lomba?.nama || "-"}`
+      ? ` — ${p.kabupaten_kota?.nama || "-"} / ${infoPeserta[p.id]?.kategori_lomba?.nama || "-"}<div style="font-size:11.5px; color:var(--grey);">${infoPeserta[p.id]?.email || "(email belum tercatat)"}</div>`
       : ` — ${p.kabupaten_kota?.nama || "(semua wilayah)"}`;
     return `
     <div style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; cursor:pointer;"
          onclick='pilihPesertaUntukReset(${JSON.stringify({ akun_id: p.id, nama_lengkap: p.nama }).replace(/'/g, "&apos;")})'>
       <b>${p.nama}</b> <span class="badge badge-gold" style="font-size:10.5px;">${roleLabel(p.role)}</span>${tambahan}
-      <div style="font-size:11.5px; color:var(--grey);">📧 ${p.email || "(email belum tercatat)"}</div>
     </div>`;
   }).join("");
 }
