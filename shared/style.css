@@ -182,3 +182,35 @@ tr:hover td { background: var(--light-green); }
   .modal-box { padding: 20px 18px; max-height: 90vh; }
   .kartu-peserta, .sertifikat-page { width: 100%; min-width: 0; }
 }
+
+/* ---- Hitung Mundur Batas Pendaftaran & Unggah Berkas ---- */
+.countdown-wrap {
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  border-radius: 14px; padding: 18px 20px; text-align: center;
+  box-shadow: 0 6px 20px rgba(15,61,38,0.25); margin-bottom: 18px;
+  transition: background 0.4s ease;
+}
+.countdown-label { color: var(--gold, #DDBE66); font-size: 13px; font-weight: 700; letter-spacing: 0.4px; margin-bottom: 12px; }
+.countdown-angka { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.countdown-blok { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
+.countdown-blok span {
+  font-size: 32px; font-weight: 800; color: white; line-height: 1;
+  font-variant-numeric: tabular-nums; text-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.countdown-blok small { font-size: 10.5px; color: rgba(255,255,255,0.75); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.countdown-pisah { font-size: 28px; font-weight: 700; color: rgba(255,255,255,0.45); align-self: flex-start; margin-top: 2px; }
+.countdown-genting { background: linear-gradient(135deg, #A62B2B 0%, #7A1F1F 100%); animation: countdown-pulse 1.4s ease-in-out infinite; }
+.countdown-genting .countdown-label { color: #FFD9A0; }
+@keyframes countdown-pulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(166,43,43,0.35); }
+  50% { box-shadow: 0 6px 28px rgba(166,43,43,0.6); }
+}
+.countdown-lewat {
+  background: #444; color: #EEE; border-radius: 14px; padding: 16px 20px;
+  text-align: center; font-size: 14px; margin-bottom: 18px;
+}
+@media (max-width: 480px) {
+  .countdown-blok span { font-size: 24px; }
+  .countdown-blok { min-width: 44px; }
+  .countdown-pisah { font-size: 20px; }
+}

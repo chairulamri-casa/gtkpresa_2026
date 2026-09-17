@@ -12,6 +12,7 @@
   <div class="login-box" style="max-width:440px;">
     <h1>Registrasi Peserta</h1>
     <div class="sub">GTKPRESA 2026 — Kanwil Kemenag Provinsi Aceh</div>
+    <div id="countdownBox"></div>
     <div id="msg"></div>
 
     <div id="gerbangTanggal" style="display:none;"></div>
@@ -150,6 +151,7 @@ async function daftarAkun() {
 
 cekGerbangTanggal();
 renderJadwalKegiatan("jadwalBox");
+renderCountdown("countdownBox");
 document.getElementById("linkJuknis").href = urlJuknisPdf();
 </script>
 </body>

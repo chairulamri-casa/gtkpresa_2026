@@ -21,6 +21,8 @@
 
 <div class="container">
 
+  <div id="countdownBox"></div>
+
   <div class="card" id="statusCard">
     <h2>Status Pendaftaran</h2>
     <div class="grid-2">
@@ -163,6 +165,7 @@ async function init() {
   isiFormBiodata();
   await renderBerkasList();
   updateNamaFileSaran();
+  renderCountdown("countdownBox");
 
   document.getElementById("formBiodata").addEventListener("submit", simpanBiodata);
 }
