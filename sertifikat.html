@@ -74,7 +74,7 @@ async function init() {
       <div class="judul-sert">PIAGAM PENGHARGAAN</div>
       <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
       <div class="isi-sert">Diberikan kepada:</div>
-      <div class="nama-penerima">${p.nama_lengkap}</div>
+      <div class="nama-penerima">${escapeHtml(p.nama_lengkap)}</div>
       <div class="isi-sert">
         ${p.kabupaten_kota?.nama || "-"}<br>
         Sebagai <b>${LABEL_STATUS_FINAL[p.status_final]}</b> pada Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>
@@ -96,7 +96,7 @@ async function init() {
       <div class="judul-sert">SERTIFIKAT</div>
       <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
       <div class="isi-sert">Diberikan kepada:</div>
-      <div class="nama-penerima">${p.nama_lengkap}</div>
+      <div class="nama-penerima">${escapeHtml(p.nama_lengkap)}</div>
       <div class="isi-sert">
         ${p.kabupaten_kota?.nama || "-"}<br>
         Sebagai <b>Peserta</b> pada Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>

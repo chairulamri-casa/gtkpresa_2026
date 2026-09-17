@@ -124,6 +124,27 @@ function fmtTanggalWIB(iso) {
   return d.toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) + " WIB";
 }
 
+// Membersihkan teks yang diisi pengguna (nama, biodata, dst) sebelum
+// ditampilkan lagi lewat innerHTML -- mencegah XSS (kode berbahaya yang
+// dititip lewat isian formulir ikut "jalan" di layar orang lain).
+function escapeHtml(teks) {
+  if (teks === null || teks === undefined) return "";
+  return String(teks)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Sandi Base64 aman-atribut -- dipakai utk menitipkan teks bebas (nama
+// peserta, dst) lewat atribut onclick="..." tanpa risiko teks itu
+// "memutus" JS di dalamnya (tanda kutip/</> tidak bisa dicegah 100%
+// hanya dgn escapeHtml krn browser decode HTML SEBELUM parsing JS
+// inline -- Base64 cuma berisi huruf/angka/+/=, aman di konteks manapun).
+function b64enc(teks) { return btoa(unescape(encodeURIComponent(String(teks ?? "")))); }
+function b64dec(teks) { return decodeURIComponent(escape(atob(teks))); }
+
 async function cekInfoPendaftaran() {
   const { data, error } = await sb.rpc("get_info_pendaftaran");
   if (error) { console.error(error); return null; }

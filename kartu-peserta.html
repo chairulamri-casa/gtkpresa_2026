@@ -45,10 +45,10 @@ async function init() {
         <div class="judul">KARTU PESERTA<br>GTKPRESA 2026</div>
       </div>
       <div class="foto-box">Tempel Pas Foto<br>4 x 6</div>
-      <div class="data-row"><b>${p.nama_lengkap}</b></div>
+      <div class="data-row"><b>${escapeHtml(p.nama_lengkap)}</b></div>
       <div class="data-row">Mata Lomba: <b style="display:inline; font-size:11px;">${p.kategori_lomba?.nama || "-"}</b></div>
       <div class="data-row">Kab/Kota: <b style="display:inline; font-size:11px;">${p.kabupaten_kota?.nama || "-"}</b></div>
-      <div class="data-row">Jabatan: <b style="display:inline; font-size:11px;">${p.jabatan || "-"}</b></div>
+      <div class="data-row">Jabatan: <b style="display:inline; font-size:11px;">${escapeHtml(p.jabatan) || "-"}</b></div>
       <div class="no-peserta">No. Peserta: ${nomorPeserta}</div>
     </div>`;
 }

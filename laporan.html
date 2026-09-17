@@ -104,7 +104,7 @@ async function loadRekap() {
     return `
     <tr>
       <td>${i+1}</td>
-      <td>${r.nama_lengkap}</td>
+      <td>${escapeHtml(r.nama_lengkap)}</td>
       <td>${r.kabkota_nama}</td>
       <td>${fmtNum(r.nilai_berkas,2)}</td>
       <td>${verifLabel[st.status_verifikasi] || "-"}</td>
@@ -120,7 +120,7 @@ async function loadRekap() {
   document.querySelector("#tblAkhir tbody").innerHTML = lolosAdministrasi.map((r,i) => `
     <tr>
       <td>${i+1}</td>
-      <td>${r.nama_lengkap}</td>
+      <td>${escapeHtml(r.nama_lengkap)}</td>
       <td>${r.kabkota_nama}</td>
       <td>${fmtNum(r.nilai_berkas,2)}</td>
       <td>${fmtNum(r.nilai_presentasi,2)}</td>
@@ -128,7 +128,7 @@ async function loadRekap() {
       <td><b>${fmtNum(r.nilai_akhir,2)}</b></td>
       <td>${statusFinalLabel[statusMap[r.peserta_id]?.status_final] || "-"}</td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="bukaRincianJuri('${r.peserta_id}','${r.nama_lengkap.replace(/'/g,"")}')">Rincian Juri</button>
+        <button class="btn btn-outline btn-sm" onclick="bukaRincianJuri('${r.peserta_id}','${b64enc(r.nama_lengkap)}')">Rincian Juri</button>
         ${(profile.role === 'admin_provinsi' || profile.role === 'panitia') ? `
         <select onchange="setStatus('${r.peserta_id}', this.value)" style="width:auto; display:inline-block; padding:4px 6px; font-size:12px; margin-top:6px;">
           <option value="">-- Tetapkan --</option>
@@ -138,7 +138,8 @@ async function loadRekap() {
     </tr>`).join("");
 }
 
-async function bukaRincianJuri(pesertaId, nama) {
+async function bukaRincianJuri(pesertaId, namaB64) {
+  const nama = b64dec(namaB64);
   document.getElementById("rincianJudul").textContent = "Rincian Nilai Juri — " + nama;
   document.getElementById("rincianIsi").innerHTML = '<p style="font-size:13px; color:var(--grey);">Memuat...</p>';
   document.getElementById("modalRincianJuri").classList.add("show");

@@ -120,11 +120,11 @@ async function loadPeserta() {
 
   tbody.innerHTML = rows.map(({p, sudah, nilaiPresentasi, nilaiTambahTotal}) => `
     <tr>
-      <td>${p.nama_lengkap}</td>
+      <td>${escapeHtml(p.nama_lengkap)}</td>
       <td>${p.kabupaten_kota?.nama || "-"}</td>
       <td>${nilaiPresentasi !== null ? fmtNum(nilaiPresentasi, 1) : '<span class="badge badge-grey">Belum</span>'}</td>
       <td>${nilaiTambahTotal !== null ? fmtNum(nilaiTambahTotal, 1) : '<span class="badge badge-grey">Belum</span>'}</td>
-      <td><button class="btn btn-primary btn-sm" onclick="bukaForm('${p.id}','${p.nama_lengkap.replace(/'/g,"")}')">${sudah ? "Ubah Nilai" : "Nilai"}</button></td>
+      <td><button class="btn btn-primary btn-sm" onclick="bukaForm('${p.id}','${b64enc(p.nama_lengkap)}')">${sudah ? "Ubah Nilai" : "Nilai"}</button></td>
     </tr>`).join("");
 }
 
@@ -147,8 +147,8 @@ async function muatProfilPeserta(pesertaId) {
   let html = `
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
       <div>
-        <b style="font-size:15px; color:var(--green);">${p.nama_lengkap}</b><br>
-        <span style="font-size:12.5px; color:var(--grey);">${p.jabatan || "-"} · ${p.unit_kerja || "-"}</span><br>
+        <b style="font-size:15px; color:var(--green);">${escapeHtml(p.nama_lengkap)}</b><br>
+        <span style="font-size:12.5px; color:var(--grey);">${escapeHtml(p.jabatan) || "-"} · ${escapeHtml(p.unit_kerja) || "-"}</span><br>
         <span style="font-size:12.5px; color:var(--grey);">${p.kabupaten_kota?.nama || "-"} · ${p.kategori_lomba?.nama || "-"}</span>
       </div>
     </div>
@@ -174,7 +174,8 @@ async function muatProfilPeserta(pesertaId) {
   box.innerHTML = html;
 }
 
-async function bukaForm(pesertaId, nama) {
+async function bukaForm(pesertaId, namaB64) {
+  const nama = b64dec(namaB64);
   currentPesertaId = pesertaId;
   document.getElementById("formTitle").textContent = "Form Penilaian — " + nama;
   document.getElementById("formCard").style.display = "block";

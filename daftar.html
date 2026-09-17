@@ -88,7 +88,7 @@ async function loadStatus() {
             ? '<span class="badge badge-green">Sudah Dipakai</span>'
             : `<span class="badge badge-grey">Belum Dipakai</span> <span style="font-family:monospace; font-size:11.5px;">${token.token}</span>`)
           : "-"}</td>
-        <td>${peserta ? peserta.nama_lengkap : '<span style="color:var(--grey);">Belum ada peserta</span>'}</td>
+        <td>${peserta ? escapeHtml(peserta.nama_lengkap) : '<span style="color:var(--grey);">Belum ada peserta</span>'}</td>
         <td>${peserta && peserta.email ? peserta.email : '<span style="color:var(--grey);">-</span>'}</td>
         <td>${peserta && peserta.no_hp ? peserta.no_hp : '<span style="color:var(--grey);">-</span>'}</td>
         <td>${peserta ? (statusBadge[peserta.status_verifikasi] || peserta.status_verifikasi) : "-"}</td>
