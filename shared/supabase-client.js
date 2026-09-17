@@ -130,7 +130,7 @@ async function cekInfoPendaftaran() {
   return data;
 }
 
-async function renderCountdown(containerId) {
+async function renderCountdown(containerId, kecil) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const info = await cekInfoPendaftaran();
@@ -138,12 +138,13 @@ async function renderCountdown(containerId) {
 
   const tutup = new Date(info.tanggal_tutup);
   let timer;
+  const kelasKecil = kecil ? " countdown-kecil" : "";
 
   function tick() {
     const sisaMs = tutup - new Date();
 
     if (sisaMs <= 0) {
-      el.innerHTML = `<div class="countdown-wrap countdown-lewat">🔒 Pendaftaran &amp; unggah berkas telah <b>DITUTUP</b></div>`;
+      el.innerHTML = `<div class="countdown-wrap countdown-lewat${kelasKecil}">🔒 Pendaftaran &amp; unggah berkas telah <b>DITUTUP</b></div>`;
       clearInterval(timer);
       return;
     }
@@ -156,7 +157,7 @@ async function renderCountdown(containerId) {
     const genting = hari < 3;
 
     el.innerHTML = `
-      <div class="countdown-wrap ${genting ? "countdown-genting" : ""}">
+      <div class="countdown-wrap${kelasKecil} ${genting ? "countdown-genting" : ""}">
         <div class="countdown-label">⏰ Batas Waktu Pendaftaran &amp; Unggah Berkas</div>
         <div class="countdown-angka">
           <div class="countdown-blok"><span>${hari}</span><small>Hari</small></div>

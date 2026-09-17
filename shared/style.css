@@ -209,6 +209,16 @@ tr:hover td { background: var(--light-green); }
   background: #444; color: #EEE; border-radius: 14px; padding: 16px 20px;
   text-align: center; font-size: 14px; margin-bottom: 18px;
 }
+
+/* Varian ringkas -- dipakai di index.html (2 kotak berdampingan) */
+.countdown-wrap.countdown-kecil { padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; }
+.countdown-kecil .countdown-label { font-size: 11px; margin-bottom: 8px; }
+.countdown-kecil .countdown-angka { gap: 6px; }
+.countdown-kecil .countdown-blok { min-width: 38px; }
+.countdown-kecil .countdown-blok span { font-size: 20px; }
+.countdown-kecil .countdown-blok small { font-size: 8.5px; margin-top: 2px; }
+.countdown-kecil .countdown-pisah { font-size: 17px; }
+.countdown-lewat.countdown-kecil { padding: 10px 14px; font-size: 12px; border-radius: 10px; margin-bottom: 12px; }
 @media (max-width: 480px) {
   .countdown-blok span { font-size: 24px; }
   .countdown-blok { min-width: 44px; }
