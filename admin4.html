@@ -10,10 +10,8 @@
 <style>
   @media print {
     body * { visibility: hidden; }
-    #areaCetakDaftar, #areaCetakDaftar *,
-    #areaCetakInstrumen, #areaCetakInstrumen * { visibility: visible; }
-    #areaCetakDaftar, #areaCetakInstrumen { position: absolute; left: 0; top: 0; width: 100%; }
-    .lembar-instrumen { page-break-after: always; }
+    #areaCetakDaftar, #areaCetakDaftar * { visibility: visible; }
+    #areaCetakDaftar { position: absolute; left: 0; top: 0; width: 100%; }
   }
 </style>
 </head>
@@ -80,8 +78,6 @@
 
   <!-- ===================== DASHBOARD REKAP PESERTA ===================== -->
   <div id="tab-dashboard">
-    <div id="bannerTenggat" class="card" style="display:none;"></div>
-
     <div class="card">
       <h2>Rekap Peserta per Mata Lomba</h2>
       <p style="font-size:13px; color:var(--grey);">Murni informatif untuk memantau progres pendaftaran. Tidak ada ambang batas atau mekanisme eliminasi — keenam mata lomba selalu dilaksanakan setiap tahun sesuai Juknis Bab III.D.</p>
@@ -114,17 +110,6 @@
         <tbody></tbody>
       </table></div>
     </div>
-
-    <div class="card no-print">
-      <h2>📝 Cetak Instrumen Penilaian (Kosong)</h2>
-      <p style="font-size:12.5px; color:var(--grey);">Untuk Dewan Juri yang ingin mencatat nilai di kertas dulu sebelum input online. Mencetak 1 lembar per peserta (Lengkap Administrasi) pada mata lomba yang dipilih, sesuai rubrik yang sama persis dengan aplikasi.</p>
-      <div class="grid-2">
-        <select id="selKategoriInstrumen"></select>
-        <button class="btn btn-primary btn-sm" onclick="siapkanCetakInstrumen()">📝 Cetak Instrumen</button>
-      </div>
-    </div>
-
-    <div id="areaCetakInstrumen" style="display:none;"></div>
 
     <div class="card">
       <h2>💾 Cadangan Data (Backup)</h2>
@@ -341,8 +326,6 @@ async function init() {
   await loadSettings();
   await loadKuorum();
   await loadMatriksPendaftaran();
-  await tampilkanBannerTenggat();
-  await isiDropdownKategoriInstrumen();
   await loadToken();
   await loadKategoriTab();
   await loadRubrikPresentasi();
@@ -944,53 +927,25 @@ async function konfirmasiHapusPeserta(pesertaId, nama, adaAkun) {
   document.getElementById("hasilCariPesertaHapus").innerHTML = "";
 }
 
-async function tampilkanBannerTenggat() {
-  const info = await cekInfoPendaftaran();
-  const box = document.getElementById("bannerTenggat");
-  if (!info) { box.style.display = "none"; return; }
-
-  const sekarang = new Date(info.sekarang);
-  const tutup = new Date(info.tanggal_tutup);
-  const sisaHari = Math.ceil((tutup - sekarang) / (1000 * 60 * 60 * 24));
-
-  box.style.display = "block";
-  if (sekarang > tutup) {
-    box.innerHTML = `<div class="msg msg-error" style="margin:0;">🔒 Pendaftaran &amp; unggah berkas <b>sudah ditutup</b> sejak ${fmtTanggalWIB(info.tanggal_tutup)}.</div>`;
-  } else if (sisaHari <= 3) {
-    box.innerHTML = `<div class="msg msg-error" style="margin:0;">⏰ Tersisa <b>${sisaHari} hari</b> lagi sebelum pendaftaran &amp; unggah berkas ditutup (${fmtTanggalWIB(info.tanggal_tutup)}). Segera hubungi kab/kota yang belum lengkap!</div>`;
-  } else if (sisaHari <= 10) {
-    box.innerHTML = `<div class="msg msg-ok" style="margin:0; background:#FFF8E1; color:#8A6D00;">⏰ Tersisa <b>${sisaHari} hari</b> lagi sebelum pendaftaran &amp; unggah berkas ditutup (${fmtTanggalWIB(info.tanggal_tutup)}).</div>`;
-  } else {
-    box.innerHTML = `<div class="msg msg-ok" style="margin:0;">⏰ Tersisa ${sisaHari} hari lagi sebelum pendaftaran &amp; unggah berkas ditutup (${fmtTanggalWIB(info.tanggal_tutup)}).</div>`;
-  }
-}
-
 async function loadMatriksPendaftaran() {
   const { data: kabkotaList } = await sb.from("kabupaten_kota").select("*").order("nama");
   const { data: kategoriList } = await sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
-  const { data: pesertaList } = await sb.from("peserta").select("nama_lengkap, kabkota_id, kategori_id, status_verifikasi");
+  const { data: pesertaList } = await sb.from("peserta").select("nama_lengkap, kabkota_id, kategori_id");
 
   const peta = {};
-  (pesertaList || []).forEach(p => { peta[`${p.kabkota_id}_${p.kategori_id}`] = p; });
+  (pesertaList || []).forEach(p => { peta[`${p.kabkota_id}_${p.kategori_id}`] = p.nama_lengkap; });
 
   document.getElementById("matriksHeader").innerHTML =
     "<th>Kab/Kota</th>" + kategoriList.map(k => `<th style="min-width:110px;">${k.nama}</th>`).join("");
-
-  const warnaStatus = {
-    lengkap: "background:var(--light-green); color:var(--green);",
-    diajukan: "background:#FFF8E1; color:#8A6D00;",
-    tidak_lengkap: "background:#FBE9E7; color:var(--red);",
-  };
-  const labelStatus = { lengkap: "✓ Lengkap", diajukan: "⏳ Belum Diperiksa", tidak_lengkap: "✗ Tdk Lengkap", didiskualifikasi: "⛔ Diskualifikasi" };
 
   document.querySelector("#tblMatriks tbody").innerHTML = (kabkotaList || []).map(kk => `
     <tr>
       <td style="font-weight:600; white-space:nowrap;">${kk.nama}</td>
       ${kategoriList.map(k => {
-        const p = peta[`${kk.id}_${k.id}`];
-        if (!p) return `<td style="color:var(--grey); text-align:center;">—</td>`;
-        const gaya = warnaStatus[p.status_verifikasi] || "background:#EEE; color:var(--grey);";
-        return `<td style="${gaya} font-weight:600;">${p.nama_lengkap}<div style="font-size:10px; font-weight:400;">${labelStatus[p.status_verifikasi] || p.status_verifikasi}</div></td>`;
+        const nama = peta[`${kk.id}_${k.id}`];
+        return nama
+          ? `<td style="background:var(--light-green); color:var(--green); font-weight:600;">${nama}</td>`
+          : `<td style="color:var(--grey); text-align:center;">—</td>`;
       }).join("")}
     </tr>`).join("");
 }
@@ -1014,85 +969,6 @@ async function siapkanCetakDaftar() {
     </tr>`).join("");
 
   document.getElementById("areaCetakDaftar").style.display = "block";
-  setTimeout(() => window.print(), 300);
-}
-
-async function isiDropdownKategoriInstrumen() {
-  const { data } = await sb.from("kategori_lomba").select("*").eq("aktif", true).order("urutan");
-  document.getElementById("selKategoriInstrumen").innerHTML =
-    (data || []).map(k => `<option value="${k.id}">${k.nama}</option>`).join("");
-}
-
-async function siapkanCetakInstrumen() {
-  const kategoriId = document.getElementById("selKategoriInstrumen").value;
-  if (!kategoriId) return;
-
-  const { data: kategori } = await sb.from("kategori_lomba").select("nama").eq("id", kategoriId).single();
-  const { data: pesertaList } = await sb.from("peserta")
-    .select("id, nama_lengkap, kabupaten_kota(nama)")
-    .eq("kategori_id", kategoriId).eq("status_verifikasi", "lengkap")
-    .order("nama_lengkap");
-  const { data: kriteriaPresentasi } = await sb.from("kriteria_presentasi").select("*").order("urutan");
-  const { data: kriteriaNilaiTambah } = await sb.from("kriteria_nilai_tambah").select("*").order("urutan");
-
-  const box = document.getElementById("areaCetakInstrumen");
-
-  if (!pesertaList || !pesertaList.length) {
-    alert(`Belum ada peserta berstatus "Lengkap" pada mata lomba ${kategori?.nama || ""}.`);
-    box.style.display = "none";
-    return;
-  }
-
-  const buatBarisNilai = (indikator, bobot, kisiKisi) => `
-    <tr>
-      <td style="padding:6px 8px; border:1px solid #999;">${indikator}${kisiKisi ? `<div style="font-size:10px; color:#666; font-style:italic; margin-top:2px;">📌 ${kisiKisi}</div>` : ""}</td>
-      <td style="padding:6px 8px; border:1px solid #999; text-align:center; width:60px;">${bobot}</td>
-      <td style="padding:6px 8px; border:1px solid #999; width:90px;"></td>
-    </tr>`;
-
-  box.innerHTML = pesertaList.map(p => `
-    <div class="lembar-instrumen" style="padding:30px 40px; font-family:Arial,sans-serif; color:#111;">
-      <div style="text-align:center; margin-bottom:18px;">
-        <div style="font-weight:bold; font-size:15px;">INSTRUMEN PENILAIAN PRESENTASI &amp; WAWANCARA</div>
-        <div style="font-size:13px;">GTKPRESA 2026 — ${kategori?.nama || ""}</div>
-      </div>
-      <table style="width:100%; margin-bottom:14px; font-size:12.5px;">
-        <tr><td style="width:140px; padding:2px 0;">Nama Peserta</td><td>: <b>${p.nama_lengkap}</b></td></tr>
-        <tr><td style="padding:2px 0;">Kab/Kota</td><td>: ${p.kabupaten_kota?.nama || "-"}</td></tr>
-        <tr><td style="padding:2px 0;">Nama Juri</td><td>: ______________________________</td></tr>
-      </table>
-
-      <div style="font-weight:bold; font-size:12.5px; margin-bottom:4px;">A. Rubrik Presentasi &amp; Wawancara</div>
-      <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px;">
-        <thead><tr>
-          <th style="padding:6px 8px; border:1px solid #999; text-align:left; background:#eee;">Indikator</th>
-          <th style="padding:6px 8px; border:1px solid #999; background:#eee;">Bobot</th>
-          <th style="padding:6px 8px; border:1px solid #999; background:#eee;">Nilai</th>
-        </tr></thead>
-        <tbody>${kriteriaPresentasi.map(k => buatBarisNilai(k.indikator, k.bobot, null)).join("")}</tbody>
-      </table>
-
-      <div style="font-weight:bold; font-size:12.5px; margin-bottom:4px;">B. Rubrik Nilai Tambah <span style="font-weight:normal;">(komponen terpisah, bukan bagian Nilai Presentasi)</span></div>
-      <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:16px;">
-        <thead><tr>
-          <th style="padding:6px 8px; border:1px solid #999; text-align:left; background:#eee;">Indikator</th>
-          <th style="padding:6px 8px; border:1px solid #999; background:#eee;">Bobot%</th>
-          <th style="padding:6px 8px; border:1px solid #999; background:#eee;">Nilai</th>
-        </tr></thead>
-        <tbody>${kriteriaNilaiTambah.map(k => buatBarisNilai(k.indikator, k.bobot, k.kisi_kisi)).join("")}</tbody>
-      </table>
-
-      <div style="font-size:12.5px; margin-bottom:6px;">Catatan:</div>
-      <div style="border-bottom:1px solid #999; height:20px;"></div>
-      <div style="border-bottom:1px solid #999; height:20px;"></div>
-      <div style="border-bottom:1px solid #999; height:20px; margin-bottom:24px;"></div>
-
-      <div style="font-size:12.5px;">Banda Aceh, ..............................</div>
-      <div style="font-size:12.5px; margin-top:50px;">( ......................................... )</div>
-      <div style="font-size:11px; color:#666;">Tanda tangan Juri</div>
-    </div>`).join("");
-
-  box.style.display = "block";
   setTimeout(() => window.print(), 300);
 }
 
