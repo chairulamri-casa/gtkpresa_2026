@@ -276,7 +276,7 @@ create table berkas_peserta (
   id uuid primary key default uuid_generate_v4(),
   peserta_id uuid not null references peserta(id) on delete cascade,
   jenis text not null check (jenis in (
-    'feature_diri','video_bukti','bukti_karya','best_practice','surat_rekomendasi','surat_pernyataan','surat_pernyataan_keaslian','dokumen_lain'
+    'feature_diri','video_bukti','bukti_karya','best_practice','surat_rekomendasi','surat_pernyataan','surat_pernyataan_keaslian','sk_terakhir','dokumen_lain'
   )),
   kriteria_id uuid references kriteria_penilaian(id), -- diisi HANYA utk jenis=bukti_karya:
     -- menautkan bukti ke 1 kriteria_penilaian spesifik, supaya pemeriksa berkas

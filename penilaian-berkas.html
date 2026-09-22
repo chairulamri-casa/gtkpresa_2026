@@ -140,6 +140,7 @@ async function bukaForm(pesertaId, namaB64) {
     { jenis: "surat_rekomendasi", label: "Surat Rekomendasi" },
     { jenis: "surat_pernyataan", label: "Surat Pernyataan Kesediaan" },
     { jenis: "surat_pernyataan_keaslian", label: "Surat Pernyataan Keaslian Karya" },
+    { jenis: "sk_terakhir", label: "SK Terakhir (masa kerja)" },
   ];
   const wajibTerpenuhi = checklistItems.every(c => jenisAda.has(c.jenis));
   const adaBuktiKriteria = berkasKriteria.length > 0;
@@ -159,7 +160,7 @@ async function bukaForm(pesertaId, namaB64) {
   const labelJenis = {
     feature_diri: "Feature Diri", best_practice: "Best Practice/Makalah",
     surat_rekomendasi: "Surat Rekomendasi", surat_pernyataan: "Surat Pernyataan Kesediaan",
-    surat_pernyataan_keaslian: "Surat Pernyataan Keaslian Karya", dokumen_lain: "Dokumen Lain"
+    surat_pernyataan_keaslian: "Surat Pernyataan Keaslian Karya", sk_terakhir: "SK Terakhir", dokumen_lain: "Dokumen Lain"
   };
   document.getElementById("berkasLinks").innerHTML = berkasUmum.length
     ? "<h3>Dokumen Umum</h3>" + berkasUmum.map(b => `<div style="margin-bottom:4px;"><b>${labelJenis[b.jenis] || b.jenis}:</b></div>${renderTautanBukti(b.url)}`).join("")
