@@ -53,6 +53,14 @@
         <div><label>Unit Kerja / Madrasah / RA *</label><input type="text" id="unit_kerja" required></div>
       </div>
       <div class="grid-2">
+        <div>
+          <label>TMT Jabatan/Penugasan Terakhir (sesuai SK Terakhir) *</label>
+          <input type="date" id="tmt_jabatan" required>
+          <p style="font-size:11px; color:var(--grey); margin-top:3px;">Tanggal Mulai Tugas pada SK Terakhir yang diunggah — dipakai memverifikasi syarat minimal masa kerja 3 tahun dalam jabatan.</p>
+        </div>
+        <div></div>
+      </div>
+      <div class="grid-2">
         <div><label>Tempat Lahir</label><input type="text" id="tempat_lahir"></div>
         <div><label>Tanggal Lahir</label><input type="date" id="tanggal_lahir"></div>
       </div>
@@ -234,7 +242,7 @@ async function hapusBuktiKriteria(id) {
 
 function isiFormBiodata() {
   const p = pesertaSaya;
-  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja",
+  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja","tmt_jabatan",
     "tempat_lahir","tanggal_lahir","jenis_kelamin","agama","nip","nik","alamat_unit_kerja","kecamatan_madrasah",
     "alamat_tempat_tinggal","kecamatan_tinggal","no_hp","email"];
   fields.forEach(f => { const el = document.getElementById(f); if (el) el.value = p[f] || ""; });
@@ -244,7 +252,7 @@ async function simpanBiodata(e) {
   e.preventDefault();
   const msg = document.getElementById("biodataMsg");
   msg.innerHTML = "";
-  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja",
+  const fields = ["nama_lengkap","nrg","jabatan_fungsional","jabatan","pangkat_golongan","unit_kerja","tmt_jabatan",
     "tempat_lahir","tanggal_lahir","jenis_kelamin","agama","nip","nik","alamat_unit_kerja","kecamatan_madrasah",
     "alamat_tempat_tinggal","kecamatan_tinggal","no_hp","email"];
   const payload = {};
