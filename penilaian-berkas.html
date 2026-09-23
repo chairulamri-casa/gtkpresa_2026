@@ -120,7 +120,20 @@ async function loadPeserta() {
 }
 
 async function setVerifikasi(pesertaId, status) {
-  const { error } = await sb.from("peserta").update({ status_verifikasi: status }).eq("id", pesertaId);
+  const payload = { status_verifikasi: status };
+
+  if (status === "didiskualifikasi") {
+    const catatan = prompt(
+      "Alasan diskualifikasi (akan ditampilkan ke peserta di dashboard mereka). Silakan sesuaikan bila alasannya bukan masa kerja:",
+      "Mohon maaf, Bapak/Ibu belum memenuhi syarat administrasi sesuai Juknis, yaitu masa kerja dalam jabatan belum mencapai 3 (tiga) tahun. Panitia mempersilakan Kasi Penmad/Pendis Kabupaten/Kota untuk mengajukan peserta pengganti sebelum tanggal tutup pendaftaran berkas."
+    );
+    if (catatan === null) return; // panitia batal
+    payload.catatan_verifikasi = catatan.trim() || null;
+  } else {
+    payload.catatan_verifikasi = null;
+  }
+
+  const { error } = await sb.from("peserta").update(payload).eq("id", pesertaId);
   if (error) { alert("Gagal: " + error.message); return; }
   loadPeserta();
 }

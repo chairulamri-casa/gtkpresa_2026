@@ -30,7 +30,6 @@
       <div class="stat-box"><div class="num" id="statusLabel">-</div><div class="label">Status Verifikasi Berkas</div></div>
     </div>
     <div id="statusTutupMsg"></div>
-    <div id="statusDiskualifikasiMsg"></div>
     <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
       <button class="btn btn-outline btn-sm" onclick="window.location.href='kartu-peserta.html'">🪪 Cetak Kartu Peserta</button>
       <button class="btn btn-outline btn-sm" onclick="window.location.href='sertifikat.html'">📜 Sertifikat &amp; Piagam</button>
@@ -157,12 +156,6 @@ async function init() {
     didiskualifikasi: "Didiskualifikasi"
   };
   document.getElementById("statusLabel").textContent = statusBadge[p.status_verifikasi] || p.status_verifikasi;
-
-  document.getElementById("statusDiskualifikasiMsg").innerHTML = (p.status_verifikasi === "didiskualifikasi")
-    ? `<div class="msg msg-error" style="margin-top:10px; line-height:1.6;">
-        ⛔ <b>${escapeHtml(p.catatan_verifikasi) || "Mohon maaf, Bapak/Ibu belum memenuhi syarat administrasi sesuai Juknis. Silakan hubungi Panitia untuk informasi lebih lanjut."}</b>
-      </div>`
-    : "";
 
   const info = await cekInfoPendaftaran();
   if (info && !info.sedang_buka) {
