@@ -37,6 +37,7 @@
 
   <div class="card" id="formCard" style="display:none;">
     <h2 id="formTitle">Form Penilaian</h2>
+    <div id="verifikasiMasaKerja"></div>
     <div id="checklistAdmin"></div>
     <div id="berkasLinks"></div>
     <h3 style="margin-top:18px;">Rubrik Feature Diri (Wajib, Berlaku Sama Semua Kategori)</h3>
@@ -109,6 +110,7 @@ async function loadPeserta() {
           <option value="diajukan" ${p.status_verifikasi === 'diajukan' ? 'selected' : ''}>Belum Diverifikasi</option>
           <option value="lengkap" ${p.status_verifikasi === 'lengkap' ? 'selected' : ''}>Lengkap</option>
           <option value="tidak_lengkap" ${p.status_verifikasi === 'tidak_lengkap' ? 'selected' : ''}>Tidak Lengkap</option>
+          <option value="didiskualifikasi" ${p.status_verifikasi === 'didiskualifikasi' ? 'selected' : ''}>Didiskualifikasi</option>
         </select>
       </td>
       <td>${statusBadge}</td>
@@ -132,6 +134,40 @@ async function bukaForm(pesertaId, namaB64) {
   const { data: berkas } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaId);
   const berkasUmum = (berkas || []).filter(b => b.jenis !== "bukti_karya");
   const berkasKriteria = (berkas || []).filter(b => b.jenis === "bukti_karya");
+
+  // ---- Verifikasi Masa Kerja dalam Jabatan (wajib >= 3 tahun, dibuktikan TMT SK Terakhir) ----
+  const { data: pesertaRow } = await sb.from("peserta").select("tmt_jabatan").eq("id", pesertaId).maybeSingle();
+  const tmt = pesertaRow?.tmt_jabatan ? new Date(pesertaRow.tmt_jabatan) : null;
+  const tahunBerjalan = new Date().getFullYear();
+  const tglAcuan = new Date(tahunBerjalan, 11, 31); // 31 Desember tahun berjalan
+  let htmlMasaKerja;
+  if (!tmt) {
+    htmlMasaKerja = `
+      <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:#FFF8E8;">
+        <b style="font-size:13px;">Verifikasi Masa Kerja dalam Jabatan (Bab II.C Juknis — wajib ≥ 3 tahun)</b>
+        <div style="margin-top:8px; font-size:12.5px;">⚠️ Peserta belum mengisi TMT Jabatan pada Biodata. Cek manual TMT pada berkas SK Terakhir yang diunggah (bila ada), lalu minta peserta melengkapi Biodatanya.</div>
+      </div>`;
+  } else {
+    let bulan = (tglAcuan.getFullYear() - tmt.getFullYear()) * 12 + (tglAcuan.getMonth() - tmt.getMonth());
+    if (tglAcuan.getDate() < tmt.getDate()) bulan -= 1;
+    if (bulan < 0) bulan = 0;
+    const tahun = Math.floor(bulan / 12);
+    const sisaBulan = bulan % 12;
+    const memenuhi = bulan >= 36;
+    htmlMasaKerja = `
+      <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:${memenuhi ? "var(--light-green)" : "#FDECEC"};">
+        <b style="font-size:13px;">Verifikasi Masa Kerja dalam Jabatan (Bab II.C Juknis — wajib ≥ 3 tahun)</b>
+        <div style="margin-top:8px; font-size:12.5px; line-height:1.9;">
+          TMT Jabatan/Penugasan (sesuai isian peserta): <b>${fmtTanggalWIB ? fmtTanggalWIB(pesertaRow.tmt_jabatan) : pesertaRow.tmt_jabatan}</b><br>
+          Dihitung s.d. 31 Desember ${tahunBerjalan}: <b>${tahun} tahun ${sisaBulan} bulan</b><br>
+          ☝️ Cocokkan tanggal ini dengan TMT pada dokumen <b>SK Terakhir</b> yang diunggah peserta sebelum memutuskan.
+        </div>
+        <div style="margin-top:8px; font-size:12.5px; font-weight:700; color:${memenuhi ? "var(--green)" : "var(--red)"};">
+          ${memenuhi ? "✓ Memenuhi syarat minimal masa kerja 3 tahun" : "✗ TIDAK memenuhi syarat minimal masa kerja 3 tahun — sesuai Juknis, gugur untuk lanjut ke tahap presentasi/wawancara. Pilih status \"Didiskualifikasi\" pada daftar peserta."}
+        </div>
+      </div>`;
+  }
+  document.getElementById("verifikasiMasaKerja").innerHTML = htmlMasaKerja;
 
   // ---- Checklist Kelengkapan Administrasi (bantu keputusan Lengkap/Tidak Lengkap) ----
   const jenisAda = new Set(berkasUmum.map(b => b.jenis));
