@@ -440,11 +440,18 @@ async function unggahBarcode() {
   await cekStatusBarcode();
 }
 
-function switchTab(name) {
+async function switchTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
   ["dashboard","token","kategori","akun","pengaturan"].forEach(t => {
     document.getElementById("tab-" + t).style.display = (t === name) ? "block" : "none";
   });
+
+  // Data dimuat sekali saat halaman pertama dibuka (init()); supaya pendaftar/
+  // token/akun baru yg masuk SAAT halaman ini terbuka tidak tampak "hilang",
+  // muat ulang data tab terkait setiap kali berpindah ke tab tsb.
+  if (name === "dashboard") { await loadKuorum(); await loadMatriksPendaftaran(); }
+  else if (name === "token") { await loadToken(); }
+  else if (name === "akun") { await loadAkun(); }
 }
 
 // ---------------- TOKEN REGISTRASI ----------------
@@ -839,7 +846,7 @@ async function cariPesertaUntukReset() {
   const hasilBox = document.getElementById("hasilCariPeserta");
   pesertaTerpilihUntukReset = null;
   document.getElementById("formResetPw").style.display = "none";
-  if (q.length < 2) { hasilBox.innerHTML = ""; return; }
+  if (q.length < 1) { hasilBox.innerHTML = ""; return; }
 
   const { data } = await sb.from("profiles")
     .select("id, nama, role, email, kabupaten_kota(nama)")
@@ -908,7 +915,7 @@ async function prosesResetPassword() {
 async function cariPesertaUntukHapus() {
   const q = document.getElementById("cariPesertaHapus").value.trim();
   const hasilBox = document.getElementById("hasilCariPesertaHapus");
-  if (q.length < 2) { hasilBox.innerHTML = ""; return; }
+  if (q.length < 1) { hasilBox.innerHTML = ""; return; }
 
   const { data } = await sb.from("peserta")
     .select("id, nama_lengkap, akun_id, status_verifikasi, kabupaten_kota(nama), kategori_lomba(nama)")
