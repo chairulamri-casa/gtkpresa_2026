@@ -148,7 +148,7 @@ async function bukaForm(pesertaId, namaB64) {
   const berkasUmum = (berkas || []).filter(b => b.jenis !== "bukti_karya");
   const berkasKriteria = (berkas || []).filter(b => b.jenis === "bukti_karya");
 
-  // ---- Verifikasi Masa Kerja dalam Jabatan (wajib >= 3 tahun kumulatif, dibuktikan SK Terakhir) ----
+  // ---- Verifikasi Masa Kerja dalam Jabatan (wajib >= 3 tahun, dibuktikan TMT SK Terakhir) ----
   const { data: pesertaRow } = await sb.from("peserta").select("tmt_jabatan").eq("id", pesertaId).maybeSingle();
   const tmt = pesertaRow?.tmt_jabatan ? new Date(pesertaRow.tmt_jabatan) : null;
   const tahunBerjalan = new Date().getFullYear();
@@ -159,7 +159,6 @@ async function bukaForm(pesertaId, namaB64) {
       <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:#FFF8E8;">
         <b style="font-size:13px;">Verifikasi Masa Kerja dalam Jabatan (Bab II.C Juknis — wajib ≥ 3 tahun)</b>
         <div style="margin-top:8px; font-size:12.5px;">⚠️ Peserta belum mengisi TMT Jabatan pada Biodata. Cek manual TMT pada berkas SK Terakhir yang diunggah (bila ada), lalu minta peserta melengkapi Biodatanya.</div>
-        <div style="margin-top:6px; font-size:11.5px; color:var(--grey);">Ket: TMT yang dimaksud adalah TMT awal bertugas sebagai Guru/Tendik secara kumulatif (boleh beda tempat tugas/pangkat/jabatan, selama tidak ada jeda), bukan TMT SK terakhir/pindah/kenaikan pangkat.</div>
       </div>`;
   } else {
     let bulan = (tglAcuan.getFullYear() - tmt.getFullYear()) * 12 + (tglAcuan.getMonth() - tmt.getMonth());
@@ -172,9 +171,9 @@ async function bukaForm(pesertaId, namaB64) {
       <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:${memenuhi ? "var(--light-green)" : "#FDECEC"};">
         <b style="font-size:13px;">Verifikasi Masa Kerja dalam Jabatan (Bab II.C Juknis — wajib ≥ 3 tahun)</b>
         <div style="margin-top:8px; font-size:12.5px; line-height:1.9;">
-          TMT bertugas sebagai Guru/Tendik (kumulatif, sesuai isian peserta): <b>${fmtTanggalWIB ? fmtTanggalWIB(pesertaRow.tmt_jabatan) : pesertaRow.tmt_jabatan}</b><br>
+          TMT Jabatan/Penugasan (sesuai isian peserta): <b>${fmtTanggalWIB ? fmtTanggalWIB(pesertaRow.tmt_jabatan) : pesertaRow.tmt_jabatan}</b><br>
           Dihitung s.d. 31 Desember ${tahunBerjalan}: <b>${tahun} tahun ${sisaBulan} bulan</b><br>
-          ☝️ Ket: masa kerja 3 tahun ini bersifat <b>kumulatif</b> — meski peserta pernah pindah tempat tugas atau beda pangkat/jabatan, tetap dihitung selama tidak ada jeda dan tetap pada jabatan Guru/Tendik. Cocokkan dengan dokumen <b>SK Terakhir</b> yang diunggah peserta (harus dapat membuktikan masa kerja 3 tahun tsb) sebelum memutuskan.
+          ☝️ Cocokkan tanggal ini dengan TMT pada dokumen <b>SK Terakhir</b> yang diunggah peserta sebelum memutuskan.
         </div>
         <div style="margin-top:8px; font-size:12.5px; font-weight:700; color:${memenuhi ? "var(--green)" : "var(--red)"};">
           ${memenuhi ? "✓ Memenuhi syarat minimal masa kerja 3 tahun" : "✗ TIDAK memenuhi syarat minimal masa kerja 3 tahun — sesuai Juknis, gugur untuk lanjut ke tahap presentasi/wawancara. Pilih status \"Didiskualifikasi\" pada daftar peserta."}
