@@ -32,7 +32,6 @@
     <div id="statusTutupMsg"></div>
     <div id="statusDiskualifikasiMsg"></div>
     <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-      <button class="btn btn-gold btn-sm" id="btnUndangan" style="display:none;" onclick="bukaUndangan()">🎉 Lihat Undangan Lomba</button>
       <button class="btn btn-outline btn-sm" onclick="window.location.href='kartu-peserta.html'">🪪 Cetak Kartu Peserta</button>
       <button class="btn btn-outline btn-sm" onclick="window.location.href='sertifikat.html'">📜 Sertifikat &amp; Piagam</button>
     </div>
@@ -130,30 +129,10 @@
 
 </div>
 
-<div class="modal-overlay" id="modalUndangan" onclick="if(event.target===this) tutupUndangan()">
-  <div class="modal-box undangan-box">
-    <button class="modal-close" onclick="tutupUndangan()">✕</button>
-    <img src="assets/logo-apresiasi-madrasah.png" alt="Logo Apresiasi Madrasah 2026" class="undangan-logo">
-    <div class="undangan-selamat">🎉 Selamat!</div>
-    <p class="undangan-lead">Anda terpilih untuk mengikuti lomba <b>GTKPRESA</b> Tingkat Provinsi pada kategori:</p>
-    <div class="undangan-kategori" id="undanganKategori">-</div>
-    <div class="undangan-jadwal">
-      📅 <b>Tanggal:</b> 14 &amp; 15 Oktober 2026<br>
-      📍 <b>Tempat:</b> MTsN 1 Banda Aceh<br>
-      ⏰ <b>Pukul:</b> 08.00 WIB
-    </div>
-    <p class="undangan-catatan">Harap hadir tepat waktu dan membawa Kartu Peserta. Informasi lebih lanjut akan disampaikan oleh Panitia.</p>
-    <button class="btn btn-primary" style="width:100%; padding:10px;" onclick="tutupUndangan()">Siap, Terima Kasih</button>
-  </div>
-</div>
-
 <script src="shared/supabase-client.js"></script>
 <script>
 let profile, pesertaSaya = null, kategoriSaya = null, currentKriteriaPanduan = [];
 let terkunci = false;
-
-function bukaUndangan() { document.getElementById("modalUndangan").classList.add("show"); }
-function tutupUndangan() { document.getElementById("modalUndangan").classList.remove("show"); }
 
 async function init() {
   profile = await requireAuth(["peserta"]);
@@ -197,17 +176,6 @@ async function init() {
     // tombol di bagian lain yg sudah diatur sendiri lewat variabel `terkunci`.
     document.querySelectorAll("#formBiodata input, #formBiodata select, #formBiodata textarea, #formBiodata button")
       .forEach(el => el.disabled = true);
-  }
-
-  if (p.status_verifikasi === "lengkap") {
-    document.getElementById("undanganKategori").textContent = kategoriSaya?.nama || "-";
-    document.getElementById("btnUndangan").style.display = "";
-    let sudahTampil = false;
-    try { sudahTampil = sessionStorage.getItem("undangan_gtkpresa") === "1"; } catch (e) {}
-    if (!sudahTampil) {
-      bukaUndangan();
-      try { sessionStorage.setItem("undangan_gtkpresa", "1"); } catch (e) {}
-    }
   }
 
   await loadPanduanKriteria();
