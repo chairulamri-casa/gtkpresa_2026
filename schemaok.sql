@@ -31,7 +31,6 @@ insert into app_settings (key, value, keterangan) values
   ('jumlah_pemenang_per_kategori', '6', 'Jumlah pemenang (Juara 1-3 + Harapan 1-3) per mata lomba'),
   ('tanggal_mulai_pendaftaran', '"2026-09-01T00:00:00+07:00"', 'Tanggal/jam mulai pendaftaran & registrasi mandiri peserta dibuka'),
   ('tanggal_tutup_pendaftaran', '"2026-09-30T21:59:00+07:00"', 'Batas akhir pendaftaran & upload berkas'),
-  ('tampilkan_countdown', '"ya"', 'ya | tidak — tampilkan/sembunyikan countdown batas waktu pendaftaran di halaman login & dashboard peserta'),
   ('status_pendaftaran', '"buka"', 'buka | tutup — mengontrol apakah form pendaftaran masih menerima input'),
   ('biaya_pendaftaran', '0', 'Nominal biaya pendaftaran per peserta (Rupiah) — 0 = gratis sesuai Juknis Bab II.C')
 on conflict (key) do nothing;
@@ -904,20 +903,17 @@ declare
   v_status text;
   v_mulai timestamptz;
   v_tutup timestamptz;
-  v_countdown text;
 begin
   select (value#>>'{}') into v_status from app_settings where key = 'status_pendaftaran';
   select (value#>>'{}')::timestamptz into v_mulai from app_settings where key = 'tanggal_mulai_pendaftaran';
   select (value#>>'{}')::timestamptz into v_tutup from app_settings where key = 'tanggal_tutup_pendaftaran';
-  select coalesce((value#>>'{}'), 'ya') into v_countdown from app_settings where key = 'tampilkan_countdown';
 
   return json_build_object(
     'status_manual', v_status,
     'tanggal_mulai', v_mulai,
     'tanggal_tutup', v_tutup,
     'sekarang', now(),
-    'sedang_buka', (v_status = 'buka' and now() >= v_mulai and now() <= v_tutup),
-    'tampilkan_countdown', coalesce(v_countdown, 'ya')
+    'sedang_buka', (v_status = 'buka' and now() >= v_mulai and now() <= v_tutup)
   );
 end;
 $$ language plpgsql security definer set search_path = public;

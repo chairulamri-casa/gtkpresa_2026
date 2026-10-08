@@ -155,7 +155,7 @@ async function renderCountdown(containerId, kecil) {
   const el = document.getElementById(containerId);
   if (!el) return;
   const info = await cekInfoPendaftaran();
-  if (!info || !info.tanggal_tutup || info.tampilkan_countdown === "tidak") { el.style.display = "none"; return; }
+  if (!info || !info.tanggal_tutup) { el.style.display = "none"; return; }
 
   const tutup = new Date(info.tanggal_tutup);
   let timer;
