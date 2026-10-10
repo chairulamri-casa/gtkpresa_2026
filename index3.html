@@ -67,8 +67,6 @@ async function doLogin() {
     msg.innerHTML = `<div class="msg msg-error">Login gagal: ${error.message}</div>`;
     return;
   }
-  // setiap login baru: pop-up undangan lomba boleh tampil lagi di dashboard peserta
-  try { sessionStorage.removeItem("undangan_gtkpresa"); } catch (e) {}
   const profile = await getProfile();
   if (!profile) {
     msg.innerHTML = '<div class="msg msg-error">Akun ditemukan tetapi profil belum diatur. Hubungi Admin Provinsi.</div>';
