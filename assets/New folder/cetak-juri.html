@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetak Kartu &amp; Sertifikat — GTKPRESA 2026</title>
+<link rel="stylesheet" href="shared/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+.kartu-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; padding: 10px; }
+.kartu-grid .kartu-peserta { margin: 0; page-break-inside: avoid; break-inside: avoid; }
+.kartu-juri .foto-juri { width: 3cm; height: 4cm; margin: 8px auto; border: 2px solid var(--green); border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--grey); text-align: center; background: #f7f7f7; }
+.kartu-juri .foto-juri img { width: 100%; height: 100%; object-fit: cover; }
+.kartu-juri .peran { text-align: center; background: var(--green); color: #fff; font-weight: 800; letter-spacing: 1.5px; font-size: 13px; border-radius: 4px; padding: 4px 0; margin: 4px 0 8px; }
+.kartu-juri .data-row { text-align: center; }
+.kartu-juri .data-row.nama b { font-size: 13px; }
+.sertifikat-page .ttd-block { margin-top: 30px; }
+@media print {
+  .kartu-grid { gap: 8px; padding: 0; }
+}
+</style>
+<style id="pageStyle"></style>
+</head>
+<body>
+<div class="topbar no-print">
+  <div>
+    <h1>Cetak Kartu &amp; Sertifikat</h1>
+    <div class="sub">Dewan Juri, Panitia &amp; Tim Pemeriksa — GTKPRESA 2026</div>
+  </div>
+  <div class="right">
+    <button class="btn btn-outline btn-sm" onclick="window.location.href='admin.html'">← Kembali ke Admin</button>
+    <button class="btn btn-primary btn-sm" onclick="cetak()">🖨️ Cetak / Simpan PDF</button>
+  </div>
+</div>
+
+<div class="container no-print">
+  <div class="card">
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+      <div style="flex:1; min-width:150px;">
+        <label>Kelompok</label>
+        <select id="selKelompok" onchange="isiPilihanOrang(); render()">
+          <option value="juri">Dewan Juri</option>
+          <option value="panitia">Panitia</option>
+          <option value="pemeriksa_berkas">Tim Pemeriksa Berkas</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:150px;">
+        <label>Yang dicetak</label>
+        <select id="selMode" onchange="render()">
+          <option value="kartu">Kartu Juri</option>
+          <option value="sertifikat">Sertifikat Juri</option>
+        </select>
+      </div>
+      <div style="flex:2; min-width:220px;">
+        <label>Nama</label>
+        <select id="selJuri" onchange="render()"></select>
+      </div>
+    </div>
+    <div id="info" style="font-size:12.5px; color:var(--grey); margin-top:10px; line-height:1.6;"></div>
+    <p style="font-size:12px; color:var(--grey); margin-top:6px;">Pilih <b>"Semua"</b> untuk mencetak sekaligus. Pada jendela cetak, pilih <b>Save as PDF</b> bila ingin disimpan sebagai PDF. Kartu dicetak portrait (A4), sertifikat otomatis landscape.</p>
+  </div>
+</div>
+
+<div id="area"></div>
+
+<script src="shared/supabase-client.js"></script>
+<script>
+let semua = [], kategoriMap = {}, ttd = { nama: "", jabatan: "" };
+
+async function init() {
+  const profile = await requireAuth(["admin_provinsi"]);
+  if (!profile) return;
+
+  const { data: kat } = await sb.from("kategori_lomba").select("id, nama");
+  kategoriMap = Object.fromEntries((kat || []).map(k => [k.id, k.nama]));
+
+  const { data: st } = await sb.from("app_settings").select("*").in("key", ["sertifikat_nama_penandatangan", "sertifikat_jabatan_penandatangan"]);
+  const sm = Object.fromEntries((st || []).map(s => [s.key, s.value]));
+  ttd = { nama: sm.sertifikat_nama_penandatangan || "", jabatan: sm.sertifikat_jabatan_penandatangan || "" };
+
+  const { data: akun } = await sb.from("profiles").select("id, nama, role, kategori_ditugaskan").in("role", ["juri","panitia","admin_provinsi","pemeriksa_berkas"]).eq("aktif", true).order("nama");
+  const { data: pj } = await sb.from("profil_juri").select("*");
+  const map = Object.fromEntries((pj || []).map(x => [x.user_id, x]));
+
+  semua = [];
+  for (const a of (akun || [])) {
+    const d = map[a.id];
+    let foto = null;
+    if (d?.foto_path) {
+      const { data: su } = await sb.storage.from("foto-juri").createSignedUrl(d.foto_path, 3600);
+      foto = su?.signedUrl || null;
+    }
+    semua.push({
+      id: a.id, kelompok: a.role === "admin_provinsi" ? "panitia" : a.role, nama: d?.nama_lengkap || a.nama, jabatan: d?.jabatan || "", instansi: d?.instansi || "",
+      foto, lengkap: !!(d && d.foto_path),
+      kategori: (a.kategori_ditugaskan || []).map(i => kategoriMap[i]).filter(Boolean)
+    });
+  }
+
+  isiPilihanOrang();
+  render();
+}
+
+function daftarKelompok() {
+  const k = document.getElementById("selKelompok").value;
+  return semua.filter(j => j.kelompok === k);
+}
+function isiPilihanOrang() {
+  document.getElementById("selJuri").innerHTML = '<option value="all">Semua</option>' +
+    daftarKelompok().map(j => `<option value="${j.id}">${escapeHtml(j.nama)}${j.lengkap ? "" : " (profil belum lengkap)"}</option>`).join("");
+}
+function terpilih() {
+  const v = document.getElementById("selJuri").value;
+  const dk = daftarKelompok();
+  return v === "all" ? dk : dk.filter(j => j.id === v);
+}
+const PERAN = { juri: "DEWAN JURI", panitia: "PANITIA", pemeriksa_berkas: "TIM PEMERIKSA" };
+const PERAN_KALIMAT = { juri: "Dewan Juri", panitia: "Panitia", pemeriksa_berkas: "Tim Pemeriksa Berkas" };
+
+function kartuHtml(j) {
+  return `
+  <div class="kartu-peserta kartu-juri">
+    <div class="kop">
+      <div class="logos">
+        <img src="${urlLogoKemenag()}" onerror="this.style.display='none'">
+        <img src="assets/logo-apresiasi-madrasah.png" class="logo-apresiasi" onerror="this.style.display='none'">
+      </div>
+      <div class="judul">KARTU ${PERAN[j.kelompok]}<br>GTKPRESA 2026</div>
+    </div>
+    <div class="foto-juri">${j.foto ? `<img src="${j.foto}" alt="Foto">` : "Foto<br>belum diunggah"}</div>
+    <div class="peran">${PERAN[j.kelompok]}</div>
+    <div class="data-row nama"><b>${escapeHtml(j.nama)}</b></div>
+    <div class="data-row">${escapeHtml(j.jabatan) || "-"}</div>
+    <div class="data-row">${escapeHtml(j.instansi) || "-"}</div>
+    <div class="no-peserta">14 &amp; 15 Oktober 2026 · MAN 1 Banda Aceh</div>
+  </div>`;
+}
+
+function sertifikatHtml(j) {
+  const tgl = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const kat = j.kategori.length ? ` pada mata lomba <b>${j.kategori.map(escapeHtml).join(", ")}</b>` : "";
+  return `
+  <div class="sertifikat-page">
+    <div class="kop-cert">
+      <img src="${urlLogoKemenag()}" onerror="this.style.display='none'">
+      <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
+      <div class="instansi-sub">Kantor Wilayah Kementerian Agama Provinsi Aceh</div>
+    </div>
+    <hr>
+    <div class="judul-sert">SERTIFIKAT</div>
+    <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
+    <div class="isi-sert">Diberikan kepada:</div>
+    <div class="nama-penerima">${escapeHtml(j.nama)}</div>
+    <div class="isi-sert">
+      ${escapeHtml(j.jabatan)}${j.jabatan && j.instansi ? " — " : ""}${escapeHtml(j.instansi)}<br>
+      Sebagai <b>${PERAN_KALIMAT[j.kelompok]}</b> pada Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>
+      Provinsi Aceh Tahun 2026${j.kelompok === "juri" ? kat : ""}, yang diselenggarakan pada 14 &amp; 15 Oktober 2026 di Banda Aceh.
+    </div>
+    <div class="ttd-block">
+      <div>Banda Aceh, ${tgl}</div>
+      <div style="margin-top:2px;">${escapeHtml(ttd.jabatan) || "Ketua Panitia GTKPRESA 2026"}</div>
+      <div style="margin-top:8px;"><img src="${urlBarcodeTtd()}" style="height:70px;" onerror="this.style.display='none'"></div>
+      <div class="garis">${escapeHtml(ttd.nama) || "( ......................................... )"}</div>
+    </div>
+  </div>`;
+}
+
+function render() {
+  const mode = document.getElementById("selMode").value;
+  const list = terpilih();
+  document.body.className = "mode-" + mode;
+  document.getElementById("pageStyle").textContent = mode === "kartu"
+    ? "@media print { @page { size: A4 portrait; margin: 1cm; } }"
+    : "@media print { @page { size: A4 landscape; margin: 0; } }";
+  const tanpaFoto = list.filter(j => !j.lengkap).length;
+  document.getElementById("info").innerHTML = `${list.length} orang akan dicetak.` +
+    (tanpaFoto && mode === "kartu" ? ` <b style="color:var(--red);">⚠ ${tanpaFoto} orang belum mengunggah foto/profil</b> — kartunya akan berisi kotak foto kosong.` : "");
+  document.getElementById("area").innerHTML = mode === "kartu"
+    ? `<div class="kartu-grid">${list.map(kartuHtml).join("")}</div>`
+    : list.map(sertifikatHtml).join("");
+}
+
+async function cetak() {
+  const imgs = Array.from(document.querySelectorAll("#area img"));
+  await Promise.all(imgs.map(i => i.complete ? null : new Promise(r => { i.onload = i.onerror = r; })));
+  window.print();
+}
+
+init();
+</script>
+</body>
+</html>

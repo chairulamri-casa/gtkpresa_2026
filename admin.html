@@ -25,6 +25,7 @@
   </div>
   <div class="right">
     <span id="userLabel"></span>
+    <a class="btn btn-outline btn-sm" href="profil-juri.html">👤 Profil &amp; Pas Foto</a>
     <button class="btn btn-outline btn-sm" onclick="window.location.href='laporan.html'">📊 Laporan &amp; Rekap Nilai</button>
     <button class="btn btn-outline btn-sm" onclick="logout()">Keluar</button>
   </div>
@@ -36,6 +37,7 @@
     <div class="tab" data-tab="token" onclick="switchTab('token')">Token Registrasi</div>
     <div class="tab" data-tab="kategori" onclick="switchTab('kategori')">Kategori &amp; Rubrik</div>
     <div class="tab" data-tab="akun" onclick="switchTab('akun')">Kelola Akun</div>
+    <div class="tab" data-tab="juri" onclick="switchTab('juri')">Data Juri &amp; Panitia</div>
     <div class="tab" data-tab="pengaturan" onclick="switchTab('pengaturan')">Pengaturan</div>
   </div>
 
@@ -190,6 +192,20 @@
         <input type="number" id="newBobotPresentasi" placeholder="Bobot (%)" min="0" max="100">
       </div>
       <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="tambahKriteriaPresentasi()">Tambah Indikator</button>
+    </div>
+  </div>
+
+  <!-- ===================== DATA JURI ===================== -->
+  <div id="tab-juri" style="display:none;">
+    <div class="card">
+      <h2>Data Dewan Juri, Panitia &amp; Tim Pemeriksa (Kartu &amp; Sertifikat)</h2>
+      <p style="font-size:12.5px; color:var(--grey);">Diisi sendiri oleh masing-masing akun lewat tombol <b>Profil &amp; Pas Foto</b>. Data bersifat rahasia (memuat NIP/NIK dan nomor HP).</p>
+      <p><a class="btn btn-primary btn-sm" href="cetak-juri.html">🖨️ Cetak Kartu &amp; Sertifikat</a></p>
+      <div class="table-wrap"><table id="tblJuri">
+        <thead><tr><th>Foto</th><th>Peran</th><th>Nama Lengkap (Gelar)</th><th>NIP/NIK</th><th>Jabatan</th><th>Instansi</th><th>No. HP</th><th>Foto Asli</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div id="juriBelum" style="font-size:12.5px; margin-top:10px;"></div>
     </div>
   </div>
 
@@ -442,7 +458,7 @@ async function unggahBarcode() {
 
 async function switchTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
-  ["dashboard","token","kategori","akun","pengaturan"].forEach(t => {
+  ["dashboard","token","kategori","akun","juri","pengaturan"].forEach(t => {
     document.getElementById("tab-" + t).style.display = (t === name) ? "block" : "none";
   });
 
@@ -452,6 +468,35 @@ async function switchTab(name) {
   if (name === "dashboard") { await loadKuorum(); await loadMatriksPendaftaran(); }
   else if (name === "token") { await loadToken(); }
   else if (name === "akun") { await loadAkun(); }
+  else if (name === "juri") { await loadJuri(); }
+}
+
+// ---------------- DATA JURI & PANITIA ----------------
+const LABEL_PERAN_TIM = { juri: "Dewan Juri", panitia: "Panitia", admin_provinsi: "Panitia", pemeriksa_berkas: "Tim Pemeriksa" };
+async function loadJuri() {
+  const { data: akunJuri } = await sb.from("profiles").select("id, nama, email, role").in("role", ["juri","panitia","admin_provinsi","pemeriksa_berkas"]).eq("aktif", true).order("role").order("nama");
+  const { data: pj } = await sb.from("profil_juri").select("*");
+  const map = Object.fromEntries((pj || []).map(x => [x.user_id, x]));
+  const tbody = document.querySelector("#tblJuri tbody");
+  tbody.innerHTML = "";
+  const belum = [];
+  for (const j of (akunJuri || [])) {
+    const d = map[j.id];
+    if (!d) { belum.push(j.nama); continue; }
+    let img = "-", unduh = "-";
+    if (d.foto_path) {
+      const { data: su } = await sb.storage.from("foto-juri").createSignedUrl(d.foto_path, 3600);
+      if (su?.signedUrl) {
+        img = `<img src="${su.signedUrl}" style="width:48px;height:64px;object-fit:cover;border-radius:4px;">`;
+        unduh = `<a href="${su.signedUrl}" target="_blank" download="foto-juri-${escapeHtml(j.nama)}.jpg">Unduh</a>`;
+      }
+    }
+    tbody.innerHTML += `<tr><td>${img}</td><td>${LABEL_PERAN_TIM[j.role] || j.role}</td><td>${escapeHtml(d.nama_lengkap)}</td><td>${escapeHtml(d.nip_nik) || "-"}</td><td>${escapeHtml(d.jabatan) || "-"}</td><td>${escapeHtml(d.instansi) || "-"}</td><td>${escapeHtml(d.no_hp) || "-"}</td><td>${unduh}</td></tr>`;
+  }
+  if (!tbody.innerHTML) tbody.innerHTML = '<tr><td colspan="8" style="color:var(--grey);">Belum ada yang mengisi profil.</td></tr>';
+  document.getElementById("juriBelum").innerHTML = belum.length
+    ? `⏳ <b>Belum mengisi (${belum.length}):</b> ${belum.map(escapeHtml).join(", ")}`
+    : ((akunJuri || []).length ? "✅ Semua sudah mengisi profil." : "");
 }
 
 // ---------------- TOKEN REGISTRASI ----------------
