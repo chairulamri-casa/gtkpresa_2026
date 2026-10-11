@@ -140,9 +140,6 @@ async function muatProfilPeserta(pesertaId) {
   const { data: berkas } = await sb.from("berkas_peserta").select("*").eq("peserta_id", pesertaId);
   const featureDiri = (berkas||[]).find(b => b.jenis === "feature_diri");
   const bestPractice = (berkas||[]).find(b => b.jenis === "best_practice");
-  const buktiKriteria = (berkas||[]).filter(b => b.jenis === "bukti_karya");
-
-  const { data: kriteria } = await sb.from("kriteria_penilaian").select("*").eq("kategori_id", p.kategori_lomba.id).order("urutan");
 
   let html = `
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
@@ -162,14 +159,7 @@ async function muatProfilPeserta(pesertaId) {
     html += `<div style="margin-top:10px;"><b style="font-size:12.5px;">Best Practice / Makalah</b><br>${renderTautanBukti(bestPractice.url)}</div>`;
   }
 
-  if (buktiKriteria.length) {
-    html += `<div style="margin-top:10px;"><b style="font-size:12.5px;">Bukti Pendukung Kriteria Kategori</b></div>`;
-    (kriteria||[]).forEach(k => {
-      const rows = buktiKriteria.filter(b => b.kriteria_id === k.id);
-      if (!rows.length) return;
-      html += `<div style="margin-top:6px; font-size:12px;"><i>${k.indikator}</i>${rows.map(b => renderTautanBukti(b.url)).join("")}</div>`;
-    });
-  }
+  // Bukti pendukung kriteria sengaja TIDAK ditampilkan ke juri: juri fokus pada presentasi & wawancara.
 
   box.innerHTML = html;
 }
