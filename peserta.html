@@ -143,6 +143,10 @@
       ⏰ <b>Pukul:</b> 08.00 WIB
     </div>
     <p class="undangan-catatan">Harap hadir tepat waktu dan membawa Kartu Peserta. Informasi lebih lanjut akan disampaikan oleh Panitia.</p>
+    <div id="undanganWaBox" style="display:none; margin-bottom:10px;">
+      <a id="undanganWaLink" href="#" target="_blank" rel="noopener" class="btn" style="display:block; width:100%; box-sizing:border-box; padding:10px; background:#25D366; color:#fff; text-decoration:none; text-align:center; font-weight:700;">💬 Gabung Grup WhatsApp Peserta</a>
+      <div style="font-size:11.5px; color:var(--grey); margin-top:5px;">Untuk informasi dan koordinasi dengan Panitia.</div>
+    </div>
     <button class="btn btn-primary" style="width:100%; padding:10px;" onclick="tutupUndangan()">Siap, Terima Kasih</button>
   </div>
 </div>
@@ -202,6 +206,15 @@ async function init() {
   if (p.status_verifikasi === "lengkap") {
     document.getElementById("undanganKategori").textContent = kategoriSaya?.nama || "-";
     document.getElementById("btnUndangan").style.display = "";
+    // tautan grup WA (diatur Admin di Pengaturan; kosong = tombol disembunyikan)
+    try {
+      const { data: wa } = await sb.from("app_settings").select("value").eq("key", "link_grup_wa").maybeSingle();
+      const linkWa = String(wa?.value ?? "").trim();
+      if (/^https:\/\/chat\.whatsapp\.com\//.test(linkWa)) {
+        document.getElementById("undanganWaLink").href = linkWa;
+        document.getElementById("undanganWaBox").style.display = "";
+      }
+    } catch (e) {}
     let sudahTampil = false;
     try { sudahTampil = sessionStorage.getItem("undangan_gtkpresa") === "1"; } catch (e) {}
     if (!sudahTampil) {
