@@ -5,7 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sertifikat — GTKPRESA 2026</title>
 <link rel="stylesheet" href="shared/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root { --hijau:#0f5a3c; --hijau2:#1f7a52; --emas:#b8902f; --emas2:#d9b95b; --teks:#1d2a24; --abu:#5d6b64; }
+  #wrapSert { transform-origin: top left; width: 29.7cm; }
+  .sertifikat-page.cert { width: 29.7cm !important; min-width: 29.7cm !important; height: 21cm !important; min-height: 21cm !important; margin: 0; padding: 0; border: none; position: relative; overflow: hidden; background: #fff; font-family: 'Inter', Arial, sans-serif; color: var(--teks); page-break-after: auto; box-sizing: border-box; text-align: center; }
+  .cert .bingkai { position: absolute; inset: 0.55cm; border: 2.5px solid var(--hijau); }
+  .cert .bingkai2 { position: absolute; inset: 0.8cm; border: 1px solid var(--emas); }
+  .cert .sudut-a { position: absolute; left: 0.55cm; top: 0.55cm; width: 6.2cm; height: 6.2cm; background: linear-gradient(135deg, var(--hijau) 0 50%, transparent 50%); clip-path: polygon(0 0,100% 0,0 100%); opacity: .95; }
+  .cert .sudut-a2 { position: absolute; left: 0.55cm; top: 0.55cm; width: 7.4cm; height: 7.4cm; background: var(--emas); clip-path: polygon(0 0,100% 0,0 100%, 0 0, 0 0); opacity: .0; }
+  .cert .garis-a { position: absolute; left: 0.55cm; top: 0.55cm; width: 7.3cm; height: 7.3cm; background: var(--emas); clip-path: polygon(0 0,100% 0,96% 0,0 96%,0 100%); }
+  .cert .sudut-b { position: absolute; right: 0.55cm; bottom: 0.55cm; width: 6.2cm; height: 6.2cm; background: var(--hijau); clip-path: polygon(100% 0,100% 100%,0 100%); }
+  .cert .garis-b { position: absolute; right: 0.55cm; bottom: 0.55cm; width: 7.3cm; height: 7.3cm; background: var(--emas); clip-path: polygon(100% 0,100% 4%,4% 100%,0 100%); }
+  .cert .watermark { position: absolute; left: 50%; top: 52%; width: 12cm; transform: translate(-50%,-50%); opacity: .045; }
+  .cert .isi { position: absolute; inset: 1.1cm 2.2cm 1cm 2.2cm; display: flex; flex-direction: column; align-items: center; }
+  .cert .logo-atas { height: 1.8cm; margin-top: 0.1cm; }
+  .cert .instansi { font-weight: 700; font-size: 13.5px; letter-spacing: .08em; color: var(--hijau); margin-top: 5px; }
+  .cert .instansi-sub { font-weight: 500; font-size: 11.5px; letter-spacing: .06em; color: var(--abu); }
+  .cert .judul { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 38px; letter-spacing: .12em; color: var(--hijau); margin-top: 0.3cm; line-height: 1.1; }
+  .cert .pemisah { width: 6cm; height: 3px; margin: 7px auto 6px; background: linear-gradient(90deg, transparent, var(--emas), transparent); }
+  .cert .nomor { font-size: 12.5px; color: var(--abu); letter-spacing: .05em; }
+  .cert .diberikan { margin-top: 0.4cm; font-size: 13px; color: var(--abu); letter-spacing: .1em; text-transform: uppercase; }
+  .cert .nama { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 38px; color: var(--teks); margin-top: 6px; padding: 0 1.2cm 4px; border-bottom: 1.5px solid var(--emas); line-height: 1.2; max-width: 20cm; }
+  .cert .ident { font-size: 12.5px; color: var(--abu); margin-top: 6px; }
+  .cert .uraian { font-size: 15px; line-height: 1.7; margin-top: 0.4cm; max-width: 27.5cm; white-space: nowrap; }
+  .cert .uraian b { color: var(--hijau); }
+  .cert .apresiasi { font-size: 12.5px; line-height: 1.6; color: var(--abu); margin-top: 0.3cm; max-width: 22.5cm; }
+  .cert .dasar { font-size: 10.5px; line-height: 1.5; color: var(--abu); margin-top: 0.15cm; max-width: 22.5cm; }
+  .cert .bawah { position: absolute; left: -0.4cm; right: -0.4cm; bottom: 1.35cm; display: flex; justify-content: space-between; align-items: flex-end; }
+  .cert .logo-apresiasi { height: 2.7cm; margin-left: 1.9cm; margin-bottom: 0.3cm; }
+  .cert .ttd { text-align: left; font-size: 12.5px; line-height: 1.45; width: 9.2cm; margin-right: 2.2cm; margin-bottom: 0.3cm; font-size: 12px; }
+  .cert .ttd img.qr { width: 2cm; height: 2cm; display: block; margin: 3px 0; }
+  .cert .ttd .nm { font-weight: 700; }
+  .cert .foot { position: absolute; left: 3cm; right: 3cm; bottom: 0.95cm; font-size: 9.5px; color: var(--abu); text-align: center; }
+  @media print { #wrapSert { transform: none !important; } .sertifikat-page.cert { page-break-after: always; } @page { size: A4 landscape; margin: 0; } }
+</style>
 </head>
 <body>
 <div class="topbar no-print">
@@ -15,99 +53,121 @@
   </div>
   <div class="right">
     <button class="btn btn-outline btn-sm" onclick="window.location.href='peserta.html'">← Kembali ke Dashboard</button>
-    <button class="btn btn-primary btn-sm no-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+    <button class="btn btn-primary btn-sm no-print" id="btnUnduh" style="display:none" onclick="unduhPdf()">⬇️ Unduh PDF</button>
+    <button class="btn btn-outline btn-sm no-print" id="btnCetak" style="display:none" onclick="window.print()">🖨️ Cetak</button>
   </div>
 </div>
 
 <div class="container no-print" id="msgBox"></div>
-
-<div id="sertifikatBox"></div>
+<div style="overflow:hidden"><div id="wrapSert"><div id="sertifikatBox"></div></div></div>
 
 <script src="shared/supabase-client.js"></script>
 <script>
-const LABEL_STATUS_FINAL = {
-  juara_1: "Juara 1", juara_2: "Juara 2", juara_3: "Juara 3",
-  harapan_1: "Juara Harapan 1", harapan_2: "Juara Harapan 2", harapan_3: "Juara Harapan 3"
-};
+let namaFile = "Sertifikat-GTKPRESA-2026";
 
-function blokTandaTangan(nama, jabatan) {
-  return `
-    <div class="ttd-block">
-      <div>Banda Aceh, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</div>
-      <div style="margin-top:2px;">${jabatan || "Ketua Panitia GTKPRESA 2026"}</div>
-      <div style="margin-top:8px;"><img src="${urlBarcodeTtd()}" style="height:70px;" onerror="this.style.display='none'"></div>
-      <div class="garis">${nama || "( ......................................... )"}</div>
-    </div>`;
+function tglIndo(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function skala() {
+  const w = document.getElementById("sertifikatBox").firstElementChild;
+  if (!w) return;
+  const lebar = 29.7 * 37.8; // px
+  const s = Math.min(1, (window.innerWidth - 16) / lebar);
+  const wrap = document.getElementById("wrapSert");
+  wrap.style.transform = s < 1 ? `scale(${s})` : "none";
+  wrap.parentElement.style.height = s < 1 ? (w.offsetHeight * s + 8) + "px" : "auto";
+}
+
+function render(d, set) {
+  const juara = d.peringkat && d.peringkat <= 6;
+  const tgl = tglIndo(set.tgl);
+  const namaTtd = set.nama || "Azhari";
+  const pejabat = set.jabatan || "Kepala Kantor Wilayah Kementerian Agama Provinsi Aceh";
+  const identitas = [d.nip && d.nip !== "-" ? "NIP. " + escapeHtml(d.nip) : "", d.unit_kerja ? escapeHtml(d.unit_kerja) : "", d.kabkota ? escapeHtml(d.kabkota) : ""].filter(Boolean);
+  const ident = identitas.length ? `<div class="ident">${identitas.join("&nbsp;&nbsp;•&nbsp;&nbsp;")}</div>` : "";
+  const uraian = juara
+    ? `Atas prestasinya sebagai <b>Juara ${d.peringkat}</b> pada mata lomba <b>${escapeHtml(d.mata_lomba)}</b><br>dalam Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>pada kegiatan <b>Ajang Prestasi Robotik, Sains, Olahraga, dan Seni Madrasah (APRESIASI)</b><br>Kementerian Agama Provinsi Aceh Tahun 2026.`
+    : `Telah berpartisipasi sebagai <b>Peserta</b> pada mata lomba <b>${escapeHtml(d.mata_lomba)}</b><br>dalam Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>pada kegiatan <b>Ajang Prestasi Robotik, Sains, Olahraga, dan Seni Madrasah (APRESIASI)</b><br>Kementerian Agama Provinsi Aceh Tahun 2026.`;
+  const html = `
+  <div class="sertifikat-page cert" id="sertPage">
+    <div class="bingkai"></div><div class="bingkai2"></div>
+    <div class="garis-a"></div><div class="sudut-a"></div>
+    <div class="garis-b"></div><div class="sudut-b"></div>
+    <img class="watermark" src="assets/logo-kemenag.png" alt="">
+    <div class="isi">
+      <img class="logo-atas" src="assets/logo-kemenag.png" alt="Logo Kementerian Agama">
+      <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
+      <div class="instansi-sub">KANTOR WILAYAH KEMENTERIAN AGAMA PROVINSI ACEH</div>
+      <div class="judul">${juara ? "PIAGAM PENGHARGAAN" : "SERTIFIKAT"}</div>
+      <div class="pemisah"></div>
+      <div class="nomor">Nomor: ${escapeHtml(set.dasar)}</div>
+      <div class="diberikan">Diberikan kepada</div>
+      <div class="nama">${escapeHtml(d.nama)}</div>
+      ${ident}
+      <div class="uraian">${uraian}</div>
+      <div class="bawah">
+        <img class="logo-apresiasi" src="assets/logo-apresiasi-madrasah.png" alt="Logo APRESIASI 2026">
+        <div class="ttd">
+          <div>Banda Aceh, ${tgl}</div>
+          <div>${escapeHtml(pejabat)},</div>
+          <img class="qr" src="assets/tte-kakanwil.png" alt="TTE">
+          <div class="nm">${escapeHtml(namaTtd)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh Balai Besar Sertifikasi Elektronik (BSrE), Badan Siber dan Sandi Negara (BSSN).</div>
+  </div>`;
+  document.getElementById("sertifikatBox").innerHTML = html;
+  namaFile = "Sertifikat-GTKPRESA-2026-" + d.nama.replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40);
+  document.getElementById("btnUnduh").style.display = "";
+  document.getElementById("btnCetak").style.display = "";
+  const f = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+  f.then(skala);
+  skala();
+}
+
+async function unduhPdf() {
+  const btn = document.getElementById("btnUnduh");
+  const el = document.getElementById("sertPage");
+  const wrap = document.getElementById("wrapSert");
+  const asal = wrap.style.transform;
+  btn.disabled = true; btn.textContent = "Menyiapkan PDF…";
+  try {
+    wrap.style.transform = "none";
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 297, 210);
+    pdf.save(namaFile + ".pdf");
+  } catch (e) {
+    alert("Gagal membuat PDF. Gunakan tombol Cetak lalu pilih Save as PDF.");
+  } finally {
+    wrap.style.transform = asal;
+    btn.disabled = false; btn.textContent = "⬇️ Unduh PDF";
+  }
 }
 
 async function init() {
   const profile = await requireAuth(["peserta"]);
   if (!profile) return;
-
-  const { data: p } = await sb.from("peserta").select("*, kategori_lomba(nama), kabupaten_kota(nama)").eq("akun_id", profile.id).maybeSingle();
-  if (!p) return;
-
   const msgBox = document.getElementById("msgBox");
-  if (p.status_verifikasi !== "lengkap") {
-    msgBox.innerHTML = '<div class="card"><div class="msg msg-error">Sertifikat belum tersedia — status verifikasi berkas Anda belum "Lengkap". Silakan cek kembali setelah Tim Pemeriksa Berkas menyelesaikan verifikasi.</div></div>';
-    return;
-  }
+  const pesan = (t) => { msgBox.innerHTML = `<div class="card"><div class="msg msg-error">${t}</div></div>`; };
 
-  const { data: settingsRows } = await sb.from("app_settings").select("*").in("key", ["sertifikat_nama_penandatangan", "sertifikat_jabatan_penandatangan"]);
-  const settings = Object.fromEntries((settingsRows||[]).map(s => [s.key, s.value]));
-  const namaTtd = settings.sertifikat_nama_penandatangan || "";
-  const jabatanTtd = settings.sertifikat_jabatan_penandatangan || "";
+  const { data: d, error } = await sb.rpc("sertifikat_saya");
+  if (error || !d) { pesan("Sertifikat tidak dapat dimuat. Silakan coba lagi nanti."); return; }
+  if (!d.terbuka) { pesan("Sertifikat belum tersedia. Silakan cek kembali setelah panitia mengumumkan sertifikat dapat diunduh."); return; }
+  if (!d.berhak) { pesan("Sertifikat tidak tersedia untuk akun ini, karena tidak tercatat mengikuti penilaian. Hubungi panitia bila terdapat kekeliruan."); return; }
 
-  const logo = urlLogoKemenag();
-  let html = "";
-
-  // Sertifikat Juara (jika status_final adalah salah satu tingkat juara)
-  if (LABEL_STATUS_FINAL[p.status_final]) {
-    html += `
-    <div class="sertifikat-page">
-      <div class="kop-cert">
-        <img src="${logo}" onerror="this.style.display='none'">
-        <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
-        <div class="instansi-sub">Kantor Wilayah Kementerian Agama Provinsi Aceh</div>
-      </div>
-      <hr>
-      <div class="judul-sert">PIAGAM PENGHARGAAN</div>
-      <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
-      <div class="isi-sert">Diberikan kepada:</div>
-      <div class="nama-penerima">${escapeHtml(p.nama_lengkap)}</div>
-      <div class="isi-sert">
-        ${p.kabupaten_kota?.nama || "-"}<br>
-        Sebagai <b>${LABEL_STATUS_FINAL[p.status_final]}</b> pada Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>
-        Provinsi Aceh Tahun 2026, Kategori <b>${p.kategori_lomba?.nama || "-"}</b>.
-      </div>
-      ${blokTandaTangan(namaTtd, jabatanTtd)}
-    </div>`;
-  }
-
-  // Sertifikat Partisipasi (selalu ada utk status berkas Lengkap)
-  html += `
-    <div class="sertifikat-page">
-      <div class="kop-cert">
-        <img src="${logo}" onerror="this.style.display='none'">
-        <div class="instansi">KEMENTERIAN AGAMA REPUBLIK INDONESIA</div>
-        <div class="instansi-sub">Kantor Wilayah Kementerian Agama Provinsi Aceh</div>
-      </div>
-      <hr>
-      <div class="judul-sert">SERTIFIKAT</div>
-      <div class="sub-sert">Nomor: ......../GTKPRESA/2026</div>
-      <div class="isi-sert">Diberikan kepada:</div>
-      <div class="nama-penerima">${escapeHtml(p.nama_lengkap)}</div>
-      <div class="isi-sert">
-        ${p.kabupaten_kota?.nama || "-"}<br>
-        Sebagai <b>Peserta</b> pada Anugerah Guru dan Tenaga Kependidikan Berprestasi (GTKPRESA)<br>
-        Provinsi Aceh Tahun 2026, Kategori <b>${p.kategori_lomba?.nama || "-"}</b>.
-      </div>
-      ${blokTandaTangan(namaTtd, jabatanTtd)}
-    </div>`;
-
-  document.getElementById("sertifikatBox").innerHTML = html;
+  const { data: rows } = await sb.from("app_settings").select("*").in("key", ["sertifikat_nama_penandatangan", "sertifikat_jabatan_penandatangan", "sertifikat_tanggal_terbit", "sertifikat_dasar_nomor"]);
+  const s = Object.fromEntries((rows || []).map(r => [r.key, String(r.value).replace(/^"|"$/g, "")]));
+  render(d, {
+    nama: s.sertifikat_nama_penandatangan, jabatan: s.sertifikat_jabatan_penandatangan,
+    tgl: s.sertifikat_tanggal_terbit || "2026-10-16", dasar: s.sertifikat_dasar_nomor || "51/Kw.01/10/2026"
+  });
 }
-
+window.addEventListener("resize", skala);
 init();
 </script>
 </body>

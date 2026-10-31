@@ -825,7 +825,10 @@ function renderSettingsForm(list) {
     link_grup_wa: "Tautan Grup WhatsApp Peserta Lengkap (tempel tautan undangan https://chat.whatsapp.com/... ; kosongkan jika belum ada)",
     tampilkan_countdown: "Tampilkan Countdown Batas Waktu di Halaman Login & Dashboard Peserta (ketik: ya / tidak)",
     sertifikat_nama_penandatangan: "Nama Penandatangan Sertifikat/Piagam (kosongkan jika belum pasti)",
-    sertifikat_jabatan_penandatangan: "Jabatan Penandatangan Sertifikat/Piagam"
+    sertifikat_jabatan_penandatangan: "Jabatan Penandatangan Sertifikat/Piagam",
+    sertifikat_terbuka: "Sertifikat Digital Dapat Diunduh Peserta (ketik: ya / tidak)",
+    sertifikat_tanggal_terbit: "Tanggal Terbit Sertifikat (YYYY-MM-DD, cth 2026-10-16)",
+    sertifikat_dasar_nomor: "Nomor Dasar Penerbitan Sertifikat"
   };
   document.getElementById("settingsForm").innerHTML = list.map(s => `
     <label>${labelMap[s.key] || s.key}</label>
