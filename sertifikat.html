@@ -21,6 +21,7 @@
   .cert .garis-a { position: absolute; left: 0.55cm; top: 0.55cm; width: 7.3cm; height: 7.3cm; background: var(--emas); clip-path: polygon(0 0,100% 0,96% 0,0 96%,0 100%); }
   .cert .sudut-b { position: absolute; right: 0.55cm; bottom: 0.55cm; width: 6.2cm; height: 6.2cm; background: var(--hijau); clip-path: polygon(100% 0,100% 100%,0 100%); }
   .cert .garis-b { position: absolute; right: 0.55cm; bottom: 0.55cm; width: 7.3cm; height: 7.3cm; background: var(--emas); clip-path: polygon(100% 0,100% 4%,4% 100%,0 100%); }
+  .cert .hias { position: absolute; left: 0; top: 0; width: 29.7cm; height: 21cm; }
   .cert .watermark { position: absolute; left: 50%; top: 52%; width: 12cm; transform: translate(-50%,-50%); opacity: .045; }
   .cert .isi { position: absolute; inset: 1.1cm 2.2cm 1cm 2.2cm; display: flex; flex-direction: column; align-items: center; }
   .cert .logo-atas { height: 1.8cm; margin-top: 0.1cm; }
@@ -41,7 +42,7 @@
   .cert .ttd { text-align: left; font-size: 12.5px; line-height: 1.45; width: 9.2cm; margin-right: 2.2cm; margin-bottom: 0.3cm; font-size: 12px; }
   .cert .ttd img.qr { width: 2cm; height: 2cm; display: block; margin: 3px 0; }
   .cert .ttd .nm { font-weight: 700; }
-  .cert .foot { position: absolute; left: 3cm; right: 3cm; bottom: 0.95cm; font-size: 9.5px; color: var(--abu); text-align: center; }
+  .cert .foot { position: absolute; left: 2cm; right: 9.5cm; bottom: 0.9cm; font-size: 9px; line-height: 1.35; color: var(--abu); text-align: left; }
   @media print { #wrapSert { transform: none !important; } .sertifikat-page.cert { page-break-after: always; } @page { size: A4 landscape; margin: 0; } }
 </style>
 </head>
@@ -93,8 +94,12 @@ function render(d, set) {
   const html = `
   <div class="sertifikat-page cert" id="sertPage">
     <div class="bingkai"></div><div class="bingkai2"></div>
-    <div class="garis-a"></div><div class="sudut-a"></div>
-    <div class="garis-b"></div><div class="sudut-b"></div>
+    <svg class="hias" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 210" width="1122" height="794" preserveAspectRatio="none">
+      <polygon points="5.5,5.5 67.5,5.5 5.5,67.5" fill="#0f5a3c"/>
+      <polygon points="67.5,5.5 73,5.5 5.5,73 5.5,67.5" fill="#b8902f"/>
+      <polygon points="291.5,142.5 291.5,204.5 229.5,204.5" fill="#0f5a3c"/>
+      <polygon points="291.5,137 291.5,142.5 229.5,204.5 224,204.5" fill="#b8902f"/>
+    </svg>
     <img class="watermark" src="assets/logo-kemenag.png" alt="">
     <div class="isi">
       <img class="logo-atas" src="assets/logo-kemenag.png" alt="Logo Kementerian Agama">
